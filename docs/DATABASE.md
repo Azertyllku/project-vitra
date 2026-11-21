@@ -5,6 +5,7 @@ Projet Supabase : `ESPORT-HUB` (région `eu-west-1`, Postgres 17).
 ## Migrations (supabase/migrations/)
 
 Toutes additives, appliquées dans l'ordre. Aucune ne supprime de table ni de donnée.
+Les fichiers du dépôt reprennent le SQL appliqué ; les horodatages de la table `supabase_migrations` côté Supabase diffèrent (`list_migrations` fait foi pour l'état réel).
 
 | N° | Fichier | Contenu |
 |---|---|---|
@@ -17,8 +18,6 @@ Toutes additives, appliquées dans l'ordre. Aucune ne supprime de table ni de do
 | 007 | storage_buckets | buckets `avatars`, `banners`, `logos` + politiques |
 | 008 | realtime | publication Realtime des tables de matchs |
 | 009 | security_hardening | révocation d'EXECUTE sur `rls_auto_enable()`, accès direct aux partitions retiré |
-
-Les migrations 003 à 009 sont dans le même répertoire (voir historique Git) ; l'état de référence est la base Supabase (`list_migrations`).
 
 ## ESPORT ID
 
@@ -35,3 +34,7 @@ Format `EH-XXXXXXXX` (alphabet sans `0`, `O`, `1`, `I`). Généré par `private.
 ## Tests RLS exécutés (24 scénarios, tous OK)
 
 Création automatique du profil / rôle / préférences, ESPORT ID immuable, auto-promotion bloquée, membre sans droit d'écriture sur le catalogue, comptes de jeux non auto-vérifiables, fausses données `official` refusées, isolation entre utilisateurs, visibilité du visiteur anonyme, droits du staff.
+
+## Types TypeScript
+
+`npm run db:types` génère `src/types/database.ts` (Supabase CLI). Pas encore généré : le code actuel utilise des interfaces locales minimales.
