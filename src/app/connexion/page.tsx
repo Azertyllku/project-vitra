@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { signIn } from '@/app/auth/actions';
-import { AuthCard, Field, SubmitButton } from '@/components/auth-form';
+import { AuthCard } from '@/components/auth-form';
+import { SignInForm } from '@/components/sign-in-form';
 
 export const metadata = { title: 'Connexion — ESPORT HUB' };
 
@@ -8,12 +8,7 @@ export default async function ConnexionPage({ searchParams }: { searchParams: Pr
   const { error, message, next } = await searchParams;
   return (
     <AuthCard title="Connexion" error={error} message={message}>
-      <form action={signIn}>
-        <input type="hidden" name="next" value={next ?? ''} />
-        <Field label="Email" name="email" type="email" autoComplete="email" />
-        <Field label="Mot de passe" name="password" type="password" autoComplete="current-password" />
-        <SubmitButton>Se connecter</SubmitButton>
-      </form>
+      <SignInForm next={next} />
       <p className="mt-6 text-center text-sm text-zinc-400">
         Pas encore de compte ?{' '}
         <Link href="/inscription" className="text-[var(--accent-blue)] hover:underline">

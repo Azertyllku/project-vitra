@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { signOut } from '@/app/auth/actions';
+import { SignOutButton } from '@/components/sign-out-button';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Mon profil — ESPORT HUB' };
@@ -40,11 +40,9 @@ export default async function ProfilPage() {
           </dl>
         </section>
       )}
-      <form action={signOut} className="mt-6">
-        <button type="submit" className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5">
-          Se déconnecter
-        </button>
-      </form>
+      <div className="mt-6">
+        <SignOutButton />
+      </div>
     </main>
   );
 }
