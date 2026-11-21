@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LiveRefresh } from '@/components/live-refresh';
 import { MatchGrid } from '@/components/match-card';
-import { Badge, Card, EmptyState, ErrorState, Logo, SectionTitle, StatusBadge } from '@/components/ui';
+import { Badge, Card, EmptyState, ErrorState, Logo, SectionTitle } from '@/components/ui';
 import { fetchGameBySlug, fetchStandings } from '@/lib/data/catalog';
 import { fetchMatches } from '@/lib/data/matches';
 import type { TournamentRow } from '@/lib/data/types';
@@ -113,9 +113,6 @@ export default async function JeuPage({ params }: Props) {
           </table>
         </Card>
       )}
-      <p className="sr-only">
-        <StatusBadge status="scheduled" />
-      </p>
     </main>
   );
 }
