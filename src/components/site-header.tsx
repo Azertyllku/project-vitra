@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 
 const LINKS: [string, string][] = [
   ['Accueil', '/'],
+  ['Live', '/live'],
   ['Matchs', '/matchs'],
+  ['Rediffusions', '/rediffusions'],
   ['Jeux', '/jeux'],
   ['Tournois', '/tournois'],
   ['Équipes', '/equipes'],
@@ -39,7 +41,7 @@ export async function SiteHeader() {
           ESPORT <span className="text-[var(--accent)]">HUB</span>
         </Link>
 
-        <ul className="hidden flex-1 items-center gap-5 text-sm text-zinc-300 md:flex">
+        <ul className="hidden flex-1 items-center gap-4 text-sm text-zinc-300 lg:flex">
           {LINKS.map(([label, href]) => (
             <li key={href}>
               <Link href={href} className="hover:text-white">
@@ -49,9 +51,9 @@ export async function SiteHeader() {
           ))}
         </ul>
 
-        <div className="ml-auto hidden items-center gap-4 text-sm md:flex">{account}</div>
+        <div className="ml-auto hidden items-center gap-4 text-sm lg:flex">{account}</div>
 
-        <details className="relative ml-auto md:hidden">
+        <details className="relative ml-auto lg:hidden">
           <summary className="cursor-pointer list-none rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm">Menu</summary>
           <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl">
             <ul className="space-y-2 text-sm">

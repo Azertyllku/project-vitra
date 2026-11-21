@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SignOutButton } from '@/components/sign-out-button';
 import { createClient } from '@/lib/supabase/server';
@@ -40,7 +41,10 @@ export default async function ProfilPage() {
           </dl>
         </section>
       )}
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link href="/profil/videos" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
+          Mes vidéos
+        </Link>
         <SignOutButton />
       </div>
     </main>
