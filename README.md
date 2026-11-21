@@ -1,4 +1,4 @@
-# ESPORT HUB
+# Vitra
 
 Plateforme esport multi-jeux : Next.js 15 (App Router) + TypeScript + Tailwind 4 + Supabase.
 
