@@ -1,9 +1,10 @@
-export type EmbedProvider = 'twitch_channel' | 'twitch_video' | 'youtube_video' | 'hls';
+export type EmbedProvider = 'twitch_channel' | 'twitch_video' | 'twitch_clip' | 'youtube_video' | 'hls';
 
 /** Mêmes règles que les contraintes SQL : défense en profondeur contre toute référence malformée. */
 const RULES: Record<EmbedProvider, RegExp> = {
   twitch_channel: /^[A-Za-z0-9_]{3,25}$/,
   twitch_video: /^[0-9]{5,15}$/,
+  twitch_clip: /^[A-Za-z0-9_-]{5,100}$/,
   youtube_video: /^[A-Za-z0-9_-]{11}$/,
   hls: /^https:\/\/[^\s"'<>]+$/,
 };
@@ -26,6 +27,8 @@ export function buildEmbedUrl(provider: EmbedProvider, ref: string, opts: { pare
       return `https://player.twitch.tv/?channel=${ref}&parent=${parent}&autoplay=false`;
     case 'twitch_video':
       return `https://player.twitch.tv/?video=v${ref}&parent=${parent}&autoplay=false${start ? `&time=${twitchTime(start)}` : ''}`;
+    case 'twitch_clip':
+      return `https://clips.twitch.tv/embed?clip=${ref}&parent=${parent}&autoplay=false`;
     case 'youtube_video':
       return `https://www.youtube-nocookie.com/embed/${ref}?rel=0${start ? `&start=${start}` : ''}`;
     default:
