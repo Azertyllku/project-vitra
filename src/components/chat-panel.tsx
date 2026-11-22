@@ -50,8 +50,9 @@ export function ChatPanel({ streamId, closed, loggedIn }: { streamId: string; cl
         void loadNames(ordered.map((l) => l.user_id));
       });
 
+    // Nom de canal unique par montage : évite de récupérer un canal déjà abonné.
     const channel = supabase
-      .channel(`chat-${streamId}`)
+      .channel(`chat-${streamId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `stream_id=eq.${streamId}` }, (payload) => {
         const line = payload.new as ChatLine & { is_hidden?: boolean };
         if (line.is_hidden) return;

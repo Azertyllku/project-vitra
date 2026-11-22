@@ -14,8 +14,9 @@ export function NotificationBell({ userId, initialCount }: { userId: string; ini
       const { count: unread } = await supabase.from('user_notifications').select('id', { count: 'exact', head: true }).is('read_at', null);
       setCount(unread ?? 0);
     };
+    // Nom de canal unique par montage : évite de récupérer un canal déjà abonné (double exécution des effets en développement).
     const channel = supabase
-      .channel(`bell-${userId}`)
+      .channel(`bell-${userId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${userId}` }, () => void refresh())
       .subscribe();
     return () => {

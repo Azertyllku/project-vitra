@@ -11,7 +11,8 @@ export function TableRefresh({ tables, channelName }: { tables: string[]; channe
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase.channel(channelName);
+    // Nom de canal unique par montage (voir NotificationBell).
+    const channel = supabase.channel(`${channelName}-${Math.random().toString(36).slice(2)}`);
     key.split(',').forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => router.refresh());
     });

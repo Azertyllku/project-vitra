@@ -14,7 +14,8 @@ export function LiveRefresh({ matchId }: { matchId?: string }) {
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase.channel(matchId ? `match-${matchId}` : 'matches-all');
+    // Nom de canal unique par montage : évite de récupérer un canal déjà abonné.
+    const channel = supabase.channel(`${matchId ? `match-${matchId}` : 'matches-all'}-${Math.random().toString(36).slice(2)}`);
     const refresh = () => router.refresh();
 
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'matches', ...(matchId ? { filter: `id=eq.${matchId}` } : {}) }, refresh);
