@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 
-const PROTECTED_PREFIXES = ['/profil'];
+const PROTECTED_PREFIXES = ['/profil', '/messages', '/notifications', '/moderation'];
 
 /** Rafraîchit la session Supabase et protège les routes privées. */
 export async function updateSession(request: NextRequest) {

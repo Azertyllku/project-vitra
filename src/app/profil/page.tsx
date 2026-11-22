@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Mon profil — ESPORT HUB' };
 
+const link = 'rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5';
+
 export default async function ProfilPage() {
   const supabase = await createClient();
   const {
@@ -31,7 +33,7 @@ export default async function ProfilPage() {
           <p className="mb-4 font-mono text-2xl tracking-wider text-[var(--accent-blue)]">{profile.esport_id}</p>
           <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
             <dt className="text-zinc-400">Pseudo</dt>
-            <dd>{profile.username}</dd>
+            <dd><Link href={`/membres/${profile.username}`} className="hover:text-[var(--accent-blue)]">{profile.username}</Link></dd>
             <dt className="text-zinc-400">Nom affiché</dt>
             <dd>{profile.display_name ?? '—'}</dd>
             <dt className="text-zinc-400">Email</dt>
@@ -42,15 +44,11 @@ export default async function ProfilPage() {
         </section>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Link href="/profil/performances" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
-          Mes performances
-        </Link>
-        <Link href="/profil/comparateur" className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5">
-          Comparateur
-        </Link>
-        <Link href="/profil/videos" className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5">
-          Mes vidéos
-        </Link>
+        <Link href="/profil/performances" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">Mes performances</Link>
+        <Link href="/profil/comparateur" className={link}>Comparateur</Link>
+        <Link href="/profil/videos" className={link}>Mes vidéos</Link>
+        <Link href="/messages" className={link}>Messages</Link>
+        <Link href="/profil/notifications" className={link}>Notifications</Link>
         <SignOutButton />
       </div>
     </main>

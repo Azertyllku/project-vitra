@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ChatPanel } from '@/components/chat-panel';
 import { EmbedPlayer } from '@/components/embed-player';
 import { FavoriteButton } from '@/components/favorite-buttons';
 import { MatchCard } from '@/components/match-card';
@@ -53,7 +54,7 @@ export default async function LiveStreamPage({ params, searchParams }: Props) {
   const replays = stream.status === 'ended' && stream.match_id ? await fetchVods({ matchId: stream.match_id, limit: 6 }) : null;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <main className="mx-auto max-w-7xl px-6 py-10">
       <TableRefresh tables={['streams', 'stream_sources']} channelName={`stream-${stream.id}`} />
 
       <p className="mb-3 text-sm text-zinc-400">
@@ -69,33 +70,38 @@ export default async function LiveStreamPage({ params, searchParams }: Props) {
       {stream.status === 'scheduled' && <p className="mb-4 text-zinc-400">Cette diffusion commence le {formatDateTime(stream.starts_at)}.</p>}
       {stream.status === 'ended' && <p className="mb-4 text-zinc-400">Cette diffusion est terminée.</p>}
 
-      {source ? (
-        <>
-          <EmbedPlayer key={source.id} provider={source.provider} embedRef={source.embed_ref} title={stream.title} />
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {stream.sources.map((s) => (
-              <Link
-                key={s.id}
-                href={`/live/${stream.id}?source=${s.id}`}
-                aria-current={s.id === source.id ? 'true' : undefined}
-                className={`rounded-full border px-3.5 py-1.5 text-sm ${s.id === source.id ? 'border-[var(--accent)] bg-[var(--accent)]/20' : 'border-[var(--border)] text-zinc-400 hover:text-white'}`}
-              >
-                {languageName(s.language)}
-                {s.label ? ` · ${s.label}` : ''}
-                {s.is_official ? ' · officielle' : ''}
-              </Link>
-            ))}
-          </div>
-          {source.rights_holder && <p className="mt-3 text-xs text-zinc-500">Diffusion proposée avec l’autorisation de {source.rights_holder}.</p>}
-        </>
-      ) : (
-        <EmptyState>Aucune source de diffusion autorisée n’est disponible pour cet événement pour le moment.</EmptyState>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <div>
+          {source ? (
+            <>
+              <EmbedPlayer key={source.id} provider={source.provider} embedRef={source.embed_ref} title={stream.title} />
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {stream.sources.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/live/${stream.id}?source=${s.id}`}
+                    aria-current={s.id === source.id ? 'true' : undefined}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm ${s.id === source.id ? 'border-[var(--accent)] bg-[var(--accent)]/20' : 'border-[var(--border)] text-zinc-400 hover:text-white'}`}
+                  >
+                    {languageName(s.language)}
+                    {s.label ? ` · ${s.label}` : ''}
+                    {s.is_official ? ' · officielle' : ''}
+                  </Link>
+                ))}
+              </div>
+              {source.rights_holder && <p className="mt-3 text-xs text-zinc-500">Diffusion proposée avec l’autorisation de {source.rights_holder}.</p>}
+            </>
+          ) : (
+            <EmptyState>Aucune source de diffusion autorisée n’est disponible pour cet événement pour le moment.</EmptyState>
+          )}
+        </div>
+        <ChatPanel streamId={stream.id} closed={stream.status === 'ended'} loggedIn={Boolean(user)} />
+      </div>
 
       {match && (
         <>
           <SectionTitle>Le match</SectionTitle>
-          <MatchCard match={match} />
+          <div className="max-w-xl"><MatchCard match={match} /></div>
           <div className="mt-4">
             <FavoriteButton entityType="match" entityId={match.id} initial={following} loggedIn={Boolean(user)} labelOff="Suivre ce match" labelOn="Match suivi" />
           </div>
