@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PublicPerformance } from '@/components/public-performance';
 import { Badge, Card, EmptyState, Logo, SectionTitle } from '@/components/ui';
 import type { PlayerLite } from '@/lib/data/types';
 import { flag, formatDate } from '@/lib/format';
 import { createClient } from '@/lib/supabase/server';
 
 type Props = { params: Promise<{ slug: string }> };
-type PlayerFull = PlayerLite & { bio: string | null; socials: Record<string, string> | null };
+type PlayerFull = PlayerLite & { bio: string | null; socials: Record<string, string> | null; profile_id: string | null };
 
 const ROLE_LABEL: Record<string, string> = { player: 'Joueur', substitute: 'Remplaçant', coach: 'Coach', analyst: 'Analyste', manager: 'Manager' };
 
@@ -23,7 +24,7 @@ export default async function JoueurPage({ params }: Props) {
   const supabase = await createClient();
   const { data: player } = await supabase
     .from('players')
-    .select('id, slug, nickname, real_name, country_code, photo_url, is_professional, bio, socials')
+    .select('id, slug, nickname, real_name, country_code, photo_url, is_professional, bio, socials, profile_id')
     .eq('slug', slug)
     .maybeSingle<PlayerFull>();
   if (!player) notFound();
@@ -61,6 +62,8 @@ export default async function JoueurPage({ params }: Props) {
           </ul>
         )}
       </header>
+
+      {player.profile_id && <PublicPerformance profileId={player.profile_id} />}
 
       <SectionTitle>Équipe actuelle</SectionTitle>
       {current.length === 0 ? (

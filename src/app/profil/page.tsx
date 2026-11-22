@@ -42,7 +42,13 @@ export default async function ProfilPage() {
         </section>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Link href="/profil/videos" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
+        <Link href="/profil/performances" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
+          Mes performances
+        </Link>
+        <Link href="/profil/comparateur" className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5">
+          Comparateur
+        </Link>
+        <Link href="/profil/videos" className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm hover:bg-white/5">
           Mes vidéos
         </Link>
         <SignOutButton />
