@@ -5,10 +5,10 @@ import { EmbedPlayer } from '@/components/embed-player';
 import { FavoriteButton } from '@/components/favorite-buttons';
 import { MatchCard } from '@/components/match-card';
 import { TableRefresh } from '@/components/table-refresh';
-import { Badge, EmptyState, SectionTitle, StatusBadge } from '@/components/ui';
+import { EmptyState, SectionTitle, StatusBadge } from '@/components/ui';
+import { VodGrid } from '@/components/vod-card';
 import { fetchMatches } from '@/lib/data/matches';
 import { fetchStream, fetchVods } from '@/lib/data/video';
-import { VodGrid } from '@/components/vod-card';
 import { formatDateTime } from '@/lib/format';
 import { one } from '@/lib/params';
 import { createClient } from '@/lib/supabase/server';
@@ -71,7 +71,7 @@ export default async function LiveStreamPage({ params, searchParams }: Props) {
 
       {source ? (
         <>
-          <EmbedPlayer provider={source.provider} embedRef={source.embed_ref} title={stream.title} />
+          <EmbedPlayer key={source.id} provider={source.provider} embedRef={source.embed_ref} title={stream.title} />
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {stream.sources.map((s) => (
               <Link
@@ -108,9 +108,6 @@ export default async function LiveStreamPage({ params, searchParams }: Props) {
           <VodGrid vods={replays.vods} />
         </>
       )}
-      <p className="sr-only">
-        <Badge>{stream.status}</Badge>
-      </p>
     </main>
   );
 }
