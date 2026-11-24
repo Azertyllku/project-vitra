@@ -11,6 +11,7 @@ export const NOTIFICATION_KINDS: { key: string; label: string }[] = [
   { key: 'message', label: 'Nouveau message privé' },
   { key: 'match_live', label: 'Un match que je suis passe en direct' },
   { key: 'new_vod', label: 'Nouvelle rediffusion disponible' },
+  { key: 'streak', label: 'Série de victoires ou de défaites sur mes comptes (Premium)' },
 ];
 
 interface Settings {
@@ -58,7 +59,7 @@ export function NotificationPreferences({ initial, games }: { initial: Settings;
       </fieldset>
       <fieldset>
         <legend className="mb-1 font-semibold">Jeux mis en sourdine</legend>
-        <p className="mb-3 text-xs text-zinc-500">Aucune notification de match ou de rediffusion pour les jeux cochés.</p>
+        <p className="mb-3 text-xs text-zinc-500">Aucune notification de match, de rediffusion ou de série pour les jeux cochés.</p>
         <ul className="grid gap-2 sm:grid-cols-2">
           {games.map((g) => (
             <li key={g.id}>

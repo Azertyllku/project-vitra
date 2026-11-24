@@ -10,6 +10,9 @@ export const PERIODS = [
 ] as const;
 export type Period = (typeof PERIODS)[number];
 
+/** Périodes accessibles sans abonnement ; les analyses historiques approfondies sont Premium. */
+export const FREE_PERIOD_KEYS: string[] = ['7j', '30j', '90j'];
+
 export function findPeriod(key: string | undefined): Period {
   return PERIODS.find((p) => p.key === key) ?? PERIODS[1];
 }
