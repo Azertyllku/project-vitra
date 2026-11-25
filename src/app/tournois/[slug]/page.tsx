@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AiReportPanel } from '@/components/ai-report-panel';
 import { MatchGrid } from '@/components/match-card';
 import { Badge, Card, EmptyState, Logo, SectionTitle } from '@/components/ui';
+import { fetchReports } from '@/lib/data/ai';
+import { getEntitlements } from '@/lib/data/entitlements';
 import { fetchMatches } from '@/lib/data/matches';
 import type { TeamLite, TournamentRow } from '@/lib/data/types';
 import { FORMAT_LABEL, TOURNAMENT_STATUS_LABEL, formatDate, formatMoney } from '@/lib/format';
@@ -26,7 +29,8 @@ export default async function TournoiPage({ params }: Props) {
   const { data: tournament } = await supabase.from('tournaments').select(COLUMNS).eq('slug', slug).maybeSingle<TournamentRow>();
   if (!tournament) notFound();
 
-  const [participants, rankings, matches] = await Promise.all([
+  const ent = await getEntitlements();
+  const [participants, rankings, matches, reports] = await Promise.all([
     supabase
       .from('tournament_participants')
       .select('seed, placement, prize, team:teams(id, slug, name, tag, logo_url, country_code)')
@@ -41,6 +45,7 @@ export default async function TournoiPage({ params }: Props) {
       .limit(50)
       .returns<{ rank: number; points: number; wins: number; losses: number; team: TeamLite | null }[]>(),
     fetchMatches({ tournamentId: tournament.id, limit: 30, ascending: true }),
+    ent.isPremium ? fetchReports('tournament_id', tournament.id, 'tournament') : Promise.resolve([]),
   ]);
 
   const prize = formatMoney(tournament.prize_pool, tournament.currency);
@@ -116,6 +121,11 @@ export default async function TournoiPage({ params }: Props) {
           )}
         </ul>
       )}
+
+      <SectionTitle>Résumé IA</SectionTitle>
+      <Card className="p-5">
+        <AiReportPanel kind="tournament" targetId={tournament.id} initial={reports} isPremium={ent.isPremium} loggedIn={Boolean(ent.userId)} />
+      </Card>
     </main>
   );
 }

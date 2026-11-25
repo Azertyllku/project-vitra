@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { AiReportPanel } from '@/components/ai-report-panel';
+import { DashboardCustomizer, type DashboardConfig } from '@/components/dashboard-customizer';
+import { DimChart } from '@/components/dim-chart';
 import { ProgressCharts, RankChart } from '@/components/performance-charts';
 import {
   AddAccountForm,
@@ -10,10 +13,13 @@ import {
   DeleteMatchButton,
   SyncButton,
 } from '@/components/performance-forms';
+import { PremiumLock } from '@/components/premium';
 import { SourceBadge, VerificationBadge } from '@/components/source-badge';
 import { Badge, Card, EmptyState, ErrorState, FilterTabs, PageHeader, Pager, SectionTitle } from '@/components/ui';
+import { fetchReports } from '@/lib/data/ai';
 import { fetchGames } from '@/lib/data/catalog';
-import { PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Dim } from '@/lib/data/performance';
+import { getEntitlements } from '@/lib/data/entitlements';
+import { FREE_PERIOD_KEYS, PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Dim } from '@/lib/data/performance';
 import { buildInsights } from '@/lib/insights';
 import { formatDateTime } from '@/lib/format';
 import { one, pageNumber } from '@/lib/params';
@@ -25,6 +31,15 @@ export const metadata: Metadata = { title: 'Mes performances' };
 const PAGE_SIZE = 20;
 const RESULT_LABEL: Record<string, string> = { win: 'Victoire', loss: 'Défaite', draw: 'Égalité', unknown: 'Inconnu' };
 const CONNECTOR_PROVIDERS = new Set(['opendota']);
+const SECTIONS = [
+  { key: 'observations', label: 'Observations' },
+  { key: 'ai', label: 'Rapport IA' },
+  { key: 'progress', label: 'Progression' },
+  { key: 'rank', label: 'Évolution du rang' },
+  { key: 'advanced', label: 'Statistiques avancées' },
+  { key: 'dims', label: 'Tableaux par carte, personnage et rôle' },
+  { key: 'extra_chart', label: 'Graphique par carte' },
+];
 
 interface AccountRow {
   id: string;
@@ -90,7 +105,8 @@ export default async function PerformancesPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect('/connexion?next=/profil/performances');
 
-  const [{ games }, accountsRes, playerRes, profileRes] = await Promise.all([
+  const ent = await getEntitlements();
+  const [{ games }, accountsRes, playerRes, profileRes, dashRes] = await Promise.all([
     fetchGames(),
     supabase
       .from('player_game_accounts')
@@ -100,11 +116,18 @@ export default async function PerformancesPage({ searchParams }: Props) {
       .returns<AccountRow[]>(),
     supabase.from('players').select('id, slug, nickname').eq('profile_id', user.id).maybeSingle<{ id: string; slug: string; nickname: string }>(),
     supabase.from('profiles').select('username').eq('id', user.id).maybeSingle<{ username: string }>(),
+    ent.isPremium ? supabase.from('user_dashboards').select('config').eq('user_id', user.id).maybeSingle<{ config: DashboardConfig }>() : Promise.resolve({ data: null }),
   ]);
+
+  const cfg: DashboardConfig = dashRes.data?.config ?? {};
+  const hidden = new Set(cfg.hidden ?? []);
+  const show = (key: string) => !hidden.has(key);
 
   const accounts = accountsRes.data ?? [];
   const account = accounts.find((a) => a.id === one(sp.compte)) ?? accounts[0];
-  const period = findPeriod(one(sp.periode));
+  let period = findPeriod(one(sp.periode) ?? cfg.default_period);
+  const periodLocked = !ent.isPremium && !FREE_PERIOD_KEYS.includes(period.key);
+  if (periodLocked) period = findPeriod('30j');
   const page = pageNumber(sp.page);
   const player = playerRes.data;
   const username = profileRes.data?.username ?? '';
@@ -112,7 +135,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
   let body: React.ReactNode = null;
   if (account?.game) {
     const since = sinceDays(period.days);
-    const [perf, perfDouble, defsRes, ranksRes, historyRes] = await Promise.all([
+    const [perf, perfDouble, defsRes, ranksRes, historyRes, reports] = await Promise.all([
       fetchPerformance(account.id, since),
       period.days ? fetchPerformance(account.id, sinceDays(period.days, 2)) : Promise.resolve(null),
       supabase.from('game_statistics_definitions').select('key, label, unit, higher_is_better').eq('game_id', account.game.id).eq('scope', 'player_match').order('display_order').returns<{ key: string; label: string; unit: string | null; higher_is_better: boolean | null }[]>(),
@@ -121,6 +144,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
         : supabase.from('player_rank_history').select('recorded_at, rating, rank_label').eq('account_id', account.id)
       ).order('recorded_at').limit(500).returns<{ recorded_at: string; rating: number | null; rank_label: string | null }[]>(),
       supabase.from('player_match_history').select('id, played_at, result, map_name, character_name, role_name, duration_seconds, stats, data_source').eq('account_id', account.id).order('played_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE).returns<HistoryRow[]>(),
+      ent.isPremium ? fetchReports('account_id', account.id, 'performance') : Promise.resolve([]),
     ]);
 
     const definitions = defsRes.data ?? [];
@@ -132,6 +156,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
     const firstRank = ranks[0];
     const lastRank = ranks[ranks.length - 1];
     const rankDelta = firstRank && lastRank && firstRank.rating != null && lastRank.rating != null ? lastRank.rating - firstRank.rating : null;
+    const advancedRows = definitions.filter((d) => perf?.stat_averages[d.key]);
 
     const params: Record<string, string> = { compte: account.id, periode: period.key };
     const link = (override: Record<string, string>) => `/profil/performances?${new URLSearchParams({ ...params, ...override }).toString()}`;
@@ -147,7 +172,14 @@ export default async function PerformancesPage({ searchParams }: Props) {
           {account.last_synced_at && <span className="text-xs text-zinc-500">Dernière synchronisation : {formatDateTime(account.last_synced_at)}</span>}
         </div>
 
-        <FilterTabs items={PERIODS.map((p) => ({ label: p.label, href: link({ periode: p.key }), active: p.key === period.key }))} />
+        <FilterTabs
+          items={PERIODS.map((p) =>
+            ent.isPremium || FREE_PERIOD_KEYS.includes(p.key)
+              ? { label: p.label, href: link({ periode: p.key }), active: p.key === period.key }
+              : { label: `${p.label} · Premium`, href: '/premium', active: false },
+          )}
+        />
+        {periodLocked && <div className="mt-4"><PremiumLock title="Analyse historique approfondie">Les périodes de 6 mois, 1 an et carrière sont réservées aux membres Premium. La période de 30 jours est affichée à la place.</PremiumLock></div>}
 
         {!perf ? (
           <div className="mt-6"><ErrorState /></div>
@@ -168,47 +200,82 @@ export default async function PerformancesPage({ searchParams }: Props) {
               {Object.entries(perf.by_source).map(([source, count]) => <span key={source} className="flex items-center gap-1"><SourceBadge source={source} /> {count} partie{count > 1 ? 's' : ''}</span>)}
             </div>
 
-            <SectionTitle>Observations</SectionTitle>
-            <Card className="p-5">
-              <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-300">{insights.map((text) => <li key={text}>{text}</li>)}</ul>
-              <p className="mt-3 text-xs text-zinc-500">Calculées uniquement à partir des parties enregistrées ci-dessous, avec un minimum de 5 parties.</p>
-            </Card>
+            {show('observations') && (
+              <>
+                <SectionTitle>Observations</SectionTitle>
+                <Card className="p-5">
+                  <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-300">{insights.map((text) => <li key={text}>{text}</li>)}</ul>
+                  <p className="mt-3 text-xs text-zinc-500">Calculées uniquement à partir des parties enregistrées ci-dessous, avec un minimum de 5 parties.</p>
+                </Card>
+              </>
+            )}
 
-            <SectionTitle>Progression</SectionTitle>
-            <Card className="p-5"><ProgressCharts days={perf.by_day} /></Card>
+            {show('ai') && (
+              <>
+                <SectionTitle>Rapport IA</SectionTitle>
+                <Card className="p-5"><AiReportPanel kind="performance" targetId={account.id} period={period.key} initial={reports} isPremium={ent.isPremium} loggedIn /></Card>
+              </>
+            )}
 
-            {ranks.length > 1 && (
+            {show('progress') && (
+              <>
+                <SectionTitle>Progression</SectionTitle>
+                <Card className="p-5"><ProgressCharts days={perf.by_day} /></Card>
+              </>
+            )}
+
+            {show('rank') && ranks.length > 1 && (
               <>
                 <SectionTitle>Évolution du rang</SectionTitle>
                 <Card className="p-5"><RankChart points={ranks.map((r) => ({ date: r.recorded_at.slice(0, 10), rating: r.rating as number }))} /></Card>
               </>
             )}
 
-            <SectionTitle>Statistiques avancées</SectionTitle>
-            {definitions.filter((d) => perf.stat_averages[d.key]).length === 0 ? (
-              <EmptyState>Aucune statistique détaillée enregistrée pour cette période.</EmptyState>
+            {!ent.isPremium ? (
+              <>
+                <SectionTitle>Statistiques avancées</SectionTitle>
+                <PremiumLock title="Statistiques avancées">Moyennes détaillées, résultats par carte, personnage et rôle, et graphiques supplémentaires sont réservés aux membres Premium.</PremiumLock>
+              </>
             ) : (
-              <Card className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="text-left text-zinc-400"><th className="px-4 py-3">Statistique</th><th className="px-4 py-3 text-right">Moyenne par partie</th><th className="px-4 py-3 text-right">Parties renseignées</th></tr></thead>
-                  <tbody>
-                    {definitions.filter((d) => perf.stat_averages[d.key]).map((d) => (
-                      <tr key={d.key} className="border-t border-[var(--border)]">
-                        <td className="px-4 py-2">{d.label}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{perf.stat_averages[d.key].avg}{d.unit ? ` ${d.unit}` : ''}</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-zinc-400">{perf.stat_averages[d.key].n} / {perf.played}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
+              <>
+                {show('advanced') && (
+                  <>
+                    <SectionTitle>Statistiques avancées</SectionTitle>
+                    {advancedRows.length === 0 ? (
+                      <EmptyState>Aucune statistique détaillée enregistrée pour cette période.</EmptyState>
+                    ) : (
+                      <Card className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="text-left text-zinc-400"><th className="px-4 py-3">Statistique</th><th className="px-4 py-3 text-right">Moyenne par partie</th><th className="px-4 py-3 text-right">Parties renseignées</th></tr></thead>
+                          <tbody>
+                            {advancedRows.map((d) => (
+                              <tr key={d.key} className="border-t border-[var(--border)]">
+                                <td className="px-4 py-2">{d.label}</td>
+                                <td className="px-4 py-2 text-right tabular-nums">{perf.stat_averages[d.key].avg}{d.unit ? ` ${d.unit}` : ''}</td>
+                                <td className="px-4 py-2 text-right tabular-nums text-zinc-400">{perf.stat_averages[d.key].n} / {perf.played}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+                    )}
+                  </>
+                )}
+                {show('dims') && (
+                  <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                    <DimTable title="Par carte" rows={perf.by_map} />
+                    <DimTable title="Par personnage" rows={perf.by_character} />
+                    <DimTable title="Par rôle" rows={perf.by_role} />
+                  </div>
+                )}
+                {show('extra_chart') && perf.by_map.length > 0 && (
+                  <>
+                    <SectionTitle>Taux de victoire par carte</SectionTitle>
+                    <Card className="p-5"><DimChart rows={perf.by_map} /></Card>
+                  </>
+                )}
+              </>
             )}
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <DimTable title="Par carte" rows={perf.by_map} />
-              <DimTable title="Par personnage" rows={perf.by_character} />
-              <DimTable title="Par rôle" rows={perf.by_role} />
-            </div>
           </>
         )}
 
@@ -243,6 +310,13 @@ export default async function PerformancesPage({ searchParams }: Props) {
           </>
         )}
 
+        {ent.isPremium && (
+          <>
+            <SectionTitle>Personnaliser mon tableau de bord</SectionTitle>
+            <Card className="p-5"><DashboardCustomizer initial={cfg} sections={SECTIONS} periods={PERIODS.map((p) => ({ key: p.key, label: p.label }))} /></Card>
+          </>
+        )}
+
         <div className="mt-10 flex justify-end"><DeleteAccountButton accountId={account.id} name={account.display_name ?? account.game.name} /></div>
       </>
     );
@@ -252,6 +326,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
     <main className="mx-auto max-w-5xl px-6 py-10">
       <PageHeader title="Mes performances" subtitle="Suivez vos parties et votre progression, jeu par jeu.">
         <span className="flex gap-4 text-sm">
+          {!ent.isPremium && <Link href="/premium" className="text-violet-300 hover:underline">Passer Premium</Link>}
           <Link href="/profil/comparateur" className="text-[var(--accent-blue)] hover:underline">Comparateur</Link>
           <Link href="/profil" className="text-[var(--accent-blue)] hover:underline">← Mon profil</Link>
         </span>

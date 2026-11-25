@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AiReportPanel } from '@/components/ai-report-panel';
 import { LiveRefresh } from '@/components/live-refresh';
 import { Badge, Card, EmptyState, Logo, SectionTitle, StatusBadge } from '@/components/ui';
+import { fetchReports } from '@/lib/data/ai';
+import { getEntitlements } from '@/lib/data/entitlements';
 import { fetchMatch, fetchMatchStats } from '@/lib/data/matches';
 import { formatDateTime } from '@/lib/format';
 
@@ -21,7 +24,11 @@ export default async function MatchPage({ params }: Props) {
   const match = await fetchMatch(id);
   if (!match) notFound();
 
-  const { rows, definitions } = await fetchMatchStats(match.id, match.game_id);
+  const ent = await getEntitlements();
+  const [{ rows, definitions }, reports] = await Promise.all([
+    fetchMatchStats(match.id, match.game_id),
+    ent.isPremium ? fetchReports('match_id', match.id, 'match') : Promise.resolve([]),
+  ]);
   const showScore = match.status === 'live' || match.status === 'finished';
 
   return (
@@ -113,6 +120,11 @@ export default async function MatchPage({ params }: Props) {
           </table>
         </Card>
       )}
+
+      <SectionTitle>Résumé IA</SectionTitle>
+      <Card className="p-5">
+        <AiReportPanel kind="match" targetId={match.id} initial={reports} isPremium={ent.isPremium} loggedIn={Boolean(ent.userId)} />
+      </Card>
     </main>
   );
 }

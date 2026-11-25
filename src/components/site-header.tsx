@@ -14,6 +14,7 @@ const LINKS: [string, string][] = [
   ['Joueurs', '/joueurs'],
   ['Classements', '/classements'],
   ['Communauté', '/communaute'],
+  ['Premium', '/premium'],
 ];
 
 export async function SiteHeader() {
