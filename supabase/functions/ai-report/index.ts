@@ -3,7 +3,7 @@ import { adminClient, userClient } from '../_shared/clients.ts';
 import { matchReport, performanceReport, tournamentReport, type Perf } from '../_shared/report-rules.ts';
 
 /**
- * Rapports et résumés IA (Premium). Architecture :
+ * Rapports et résumés IA (gratuits pour tout membre connecté). Architecture :
  * - données lues avec les droits de l'appelant (RLS) : aucune fuite possible vers un autre membre ;
  * - sans ANTHROPIC_API_KEY (ou si moins de 5 parties), le rapport est produit par règles (provider = 'rules') ;
  * - avec la clé, le modèle (AI_MODEL) ne reçoit QUE les données agrégées, avec consigne stricte de ne rien inventer ;
@@ -59,10 +59,6 @@ Deno.serve(async (req) => {
   if (authError || !auth.user) return json({ error: 'unauthorized', message: 'Connexion requise.' }, 401);
   const user = auth.user;
   const admin = adminClient();
-
-  // Réservé aux membres Premium (et au staff).
-  const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', user.id).in('role', ['premium', 'admin', 'super_admin']);
-  if (!roles || roles.length === 0) return json({ error: 'premium_required', message: 'Les rapports IA sont réservés aux membres Premium.' }, 402);
 
   const body = await req.json().catch(() => ({}));
   const kind = body.kind;
