@@ -4,25 +4,22 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { readFunctionError } from '@/lib/function-error';
-import { PremiumLock } from '@/components/premium';
 import type { AiReport } from '@/lib/data/ai';
 
 const KIND_LABEL = { performance: 'rapport de performances', match: 'résumé du match', tournament: 'résumé du tournoi' } as const;
 
-/** Génère et affiche des rapports IA (Premium). Chaque rapport indique sa provenance : règles ou modèle d'IA. */
+/** Génère et affiche des rapports IA (membres connectés). Chaque rapport indique sa provenance : règles ou modèle d'IA. */
 export function AiReportPanel({
   kind,
   targetId,
   period,
   initial,
-  isPremium,
   loggedIn,
 }: {
   kind: 'performance' | 'match' | 'tournament';
   targetId: string;
   period?: string;
   initial: AiReport[];
-  isPremium: boolean;
   loggedIn: boolean;
 }) {
   const [reports, setReports] = useState(initial);
@@ -31,9 +28,6 @@ export function AiReportPanel({
 
   if (!loggedIn) {
     return <p className="text-sm text-zinc-400"><Link href="/connexion" className="text-[var(--accent-blue)] hover:underline">Connectez-vous</Link> pour accéder aux rapports IA.</p>;
-  }
-  if (!isPremium) {
-    return <PremiumLock title="Rapports IA">Les résumés et analyses générés à partir de vos données sont réservés aux membres Premium.</PremiumLock>;
   }
 
   async function generate() {

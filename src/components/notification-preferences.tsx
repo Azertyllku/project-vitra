@@ -11,7 +11,7 @@ export const NOTIFICATION_KINDS: { key: string; label: string }[] = [
   { key: 'message', label: 'Nouveau message privé' },
   { key: 'match_live', label: 'Un match que je suis passe en direct' },
   { key: 'new_vod', label: 'Nouvelle rediffusion disponible' },
-  { key: 'streak', label: 'Série de victoires ou de défaites sur mes comptes (Premium)' },
+  { key: 'streak', label: 'Série de victoires ou de défaites sur mes comptes' },
 ];
 
 interface Settings {
