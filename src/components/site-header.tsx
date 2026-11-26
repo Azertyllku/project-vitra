@@ -21,13 +21,13 @@ const TEAMS_AND_PLAYERS: NavGroup = {
 };
 
 export async function SiteHeader() {
-  const viewer = await getViewer();
-  let unread = 0;
-  if (viewer) {
-    const supabase = await createClient();
-    const { count } = await supabase.from('user_notifications').select('id', { count: 'exact', head: true }).is('read_at', null);
-    unread = count ?? 0;
-  }
+  const supabase = await createClient();
+  // Les deux requêtes partent en parallèle ; la RLS ne renvoie que les notifications du membre connecté.
+  const [viewer, unreadRes] = await Promise.all([
+    getViewer(),
+    supabase.from('user_notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+  ]);
+  const unread = viewer ? (unreadRes.count ?? 0) : 0;
 
   const mobileSections = [
     {

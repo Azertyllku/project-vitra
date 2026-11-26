@@ -1,17 +1,27 @@
+import { unstable_cache } from 'next/cache';
+import { publicClient } from '@/lib/supabase/public';
 import { createClient } from '@/lib/supabase/server';
 import type { GameRow, StandingRow, TeamLite } from './types';
 
 const GAME_COLUMNS = 'id, slug, name, short_name, description, genre, logo_url, banner_url, accent_color';
 
+/** Catalogue public des jeux : mis en cache 5 minutes (tag « games », à invalider après une modification). */
+const loadGames = unstable_cache(
+  async () => {
+    const { data, error } = await publicClient().from('games').select(GAME_COLUMNS).eq('is_active', true).order('sort_order').returns<GameRow[]>();
+    if (error) throw error; // une erreur n'est jamais mise en cache
+    return data ?? [];
+  },
+  ['games-active'],
+  { revalidate: 300, tags: ['games'] },
+);
+
 export async function fetchGames(): Promise<{ games: GameRow[]; failed: boolean }> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('games')
-    .select(GAME_COLUMNS)
-    .eq('is_active', true)
-    .order('sort_order')
-    .returns<GameRow[]>();
-  return { games: data ?? [], failed: Boolean(error) };
+  try {
+    return { games: await loadGames(), failed: false };
+  } catch {
+    return { games: [], failed: true };
+  }
 }
 
 export async function fetchGameBySlug(slug: string): Promise<GameRow | null> {

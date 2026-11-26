@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 
 export type PostKind = 'text' | 'clip' | 'performance';
@@ -28,8 +29,11 @@ export const isUuid = (value: string) => UUID_RE.test(value);
 export const POST_SELECT =
   'id, author_id, kind, body, clip_provider, clip_ref, account_id, period, created_at, is_hidden, author:profiles(username, display_name), community:communities(slug, name)';
 
-/** Utilisateur connecté + indicateur staff (rôles lus avec la RLS : chacun ne voit que les siens). */
-export async function getViewer(): Promise<Viewer | null> {
+/**
+ * Utilisateur connecté + indicateur staff (rôles lus avec la RLS : chacun ne voit que les siens).
+ * Mémorisé par requête : l'en-tête et la page partagent le même résultat (un seul aller-retour).
+ */
+export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,7 +41,7 @@ export async function getViewer(): Promise<Viewer | null> {
   if (!user) return null;
   const { data } = await supabase.from('user_roles').select('role').eq('user_id', user.id).returns<{ role: string }[]>();
   return { id: user.id, isStaff: (data ?? []).some((r) => ['editor', 'admin', 'super_admin'].includes(r.role)) };
-}
+});
 
 export interface PostQuery {
   communityId?: string;
