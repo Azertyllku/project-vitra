@@ -2,10 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CompareChart } from '@/components/performance-charts';
-import { PremiumLock } from '@/components/premium';
 import { Card, EmptyState, ErrorState, FilterTabs, PageHeader, SectionTitle } from '@/components/ui';
-import { getEntitlements } from '@/lib/data/entitlements';
-import { FREE_PERIOD_KEYS, PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Performance } from '@/lib/data/performance';
+import { PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Performance } from '@/lib/data/performance';
 import { one } from '@/lib/params';
 import { createClient } from '@/lib/supabase/server';
 
@@ -44,7 +42,6 @@ export default async function ComparateurPage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/connexion?next=/profil/comparateur');
-  const ent = await getEntitlements();
 
   const SELECT = 'id, display_name, provider, profile_id, game:games(id, slug, name)';
   const [{ data: mine }, { data: me }] = await Promise.all([
@@ -52,9 +49,7 @@ export default async function ComparateurPage({ searchParams }: Props) {
     supabase.from('profiles').select('esport_id, username').eq('id', user.id).maybeSingle<{ esport_id: string; username: string }>(),
   ]);
   const myAccounts = mine ?? [];
-  let period = findPeriod(one(sp.periode));
-  const periodLocked = !ent.isPremium && !FREE_PERIOD_KEYS.includes(period.key);
-  if (periodLocked) period = findPeriod('30j');
+  const period = findPeriod(one(sp.periode));
 
   if (myAccounts.length === 0) {
     return (
@@ -115,15 +110,8 @@ export default async function ComparateurPage({ searchParams }: Props) {
       <p className="mt-2 text-xs text-zinc-500">Par défaut, vous comparez vos propres comptes. Les comptes d’un autre membre ne sont visibles que s’ils sont vérifiés et rendus publics par leur propriétaire.</p>
 
       <div className="mt-6">
-        <FilterTabs
-          items={PERIODS.map((p) =>
-            ent.isPremium || FREE_PERIOD_KEYS.includes(p.key)
-              ? { label: p.label, href: link({ periode: p.key, ...(b ? { b: b.id } : {}) }), active: p.key === period.key }
-              : { label: `${p.label} · Premium`, href: '/premium', active: false },
-          )}
-        />
+        <FilterTabs items={PERIODS.map((p) => ({ label: p.label, href: link({ periode: p.key, ...(b ? { b: b.id } : {}) }), active: p.key === period.key }))} />
       </div>
-      {periodLocked && <div className="mt-4"><PremiumLock title="Analyse historique approfondie">Les périodes de 6 mois, 1 an et carrière sont réservées aux membres Premium. La période de 30 jours est affichée à la place.</PremiumLock></div>}
 
       <div className="mt-8">
         {eid && !target ? (
@@ -145,13 +133,12 @@ export default async function ComparateurPage({ searchParams }: Props) {
                       <Row label="Victoires" a={String(perfA.wins)} b={String(perfB.wins)} better={pick(perfA.wins, perfB.wins)} />
                       <Row label="Taux de victoire" a={rateA != null ? `${rateA} %` : '—'} b={rateB != null ? `${rateB} %` : '—'} better={pick(rateA, rateB)} />
                       <Row label="Temps de jeu" a={formatPlaytime(perfA.seconds)} b={formatPlaytime(perfB.seconds)} />
-                      {ent.isPremium && defs.map((d) => (
+                      {defs.map((d) => (
                         <Row key={d.key} label={d.label} a={fmt(perfA, d.key, d.unit)} b={fmt(perfB, d.key, d.unit)} better={d.higher_is_better == null ? null : pick(perfA.stat_averages[d.key]?.avg ?? null, perfB.stat_averages[d.key]?.avg ?? null, d.higher_is_better)} />
                       ))}
                     </tbody>
                   </table>
                 </Card>
-                {!ent.isPremium && defs.length > 0 && <div className="mt-4"><PremiumLock title="Comparaison avancée">La comparaison détaillée des statistiques (moyennes par partie) est réservée aux membres Premium.</PremiumLock></div>}
                 <SectionTitle>Taux de victoire</SectionTitle>
                 <Card className="p-5"><CompareChart labelA={labelA} labelB={labelB} rows={[{ name: 'Taux de victoire (%)', a: rateA, b: rateB }]} /></Card>
                 <p className="mt-3 text-xs text-zinc-500">Les moyennes ne portent que sur les parties où la statistique est renseignée. Un « — » signifie donnée indisponible.</p>

@@ -13,13 +13,11 @@ import {
   DeleteMatchButton,
   SyncButton,
 } from '@/components/performance-forms';
-import { PremiumLock } from '@/components/premium';
 import { SourceBadge, VerificationBadge } from '@/components/source-badge';
 import { Badge, Card, EmptyState, ErrorState, FilterTabs, PageHeader, Pager, SectionTitle } from '@/components/ui';
 import { fetchReports } from '@/lib/data/ai';
 import { fetchGames } from '@/lib/data/catalog';
-import { getEntitlements } from '@/lib/data/entitlements';
-import { FREE_PERIOD_KEYS, PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Dim } from '@/lib/data/performance';
+import { PERIODS, fetchPerformance, findPeriod, formatPlaytime, sinceDays, winRate, type Dim } from '@/lib/data/performance';
 import { buildInsights } from '@/lib/insights';
 import { formatDateTime } from '@/lib/format';
 import { one, pageNumber } from '@/lib/params';
@@ -105,7 +103,6 @@ export default async function PerformancesPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect('/connexion?next=/profil/performances');
 
-  const ent = await getEntitlements();
   const [{ games }, accountsRes, playerRes, profileRes, dashRes] = await Promise.all([
     fetchGames(),
     supabase
@@ -116,7 +113,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
       .returns<AccountRow[]>(),
     supabase.from('players').select('id, slug, nickname').eq('profile_id', user.id).maybeSingle<{ id: string; slug: string; nickname: string }>(),
     supabase.from('profiles').select('username').eq('id', user.id).maybeSingle<{ username: string }>(),
-    ent.isPremium ? supabase.from('user_dashboards').select('config').eq('user_id', user.id).maybeSingle<{ config: DashboardConfig }>() : Promise.resolve({ data: null }),
+    supabase.from('user_dashboards').select('config').eq('user_id', user.id).maybeSingle<{ config: DashboardConfig }>(),
   ]);
 
   const cfg: DashboardConfig = dashRes.data?.config ?? {};
@@ -125,9 +122,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
 
   const accounts = accountsRes.data ?? [];
   const account = accounts.find((a) => a.id === one(sp.compte)) ?? accounts[0];
-  let period = findPeriod(one(sp.periode) ?? cfg.default_period);
-  const periodLocked = !ent.isPremium && !FREE_PERIOD_KEYS.includes(period.key);
-  if (periodLocked) period = findPeriod('30j');
+  const period = findPeriod(one(sp.periode) ?? cfg.default_period);
   const page = pageNumber(sp.page);
   const player = playerRes.data;
   const username = profileRes.data?.username ?? '';
@@ -144,7 +139,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
         : supabase.from('player_rank_history').select('recorded_at, rating, rank_label').eq('account_id', account.id)
       ).order('recorded_at').limit(500).returns<{ recorded_at: string; rating: number | null; rank_label: string | null }[]>(),
       supabase.from('player_match_history').select('id, played_at, result, map_name, character_name, role_name, duration_seconds, stats, data_source').eq('account_id', account.id).order('played_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE).returns<HistoryRow[]>(),
-      ent.isPremium ? fetchReports('account_id', account.id, 'performance') : Promise.resolve([]),
+      fetchReports('account_id', account.id, 'performance'),
     ]);
 
     const definitions = defsRes.data ?? [];
@@ -172,14 +167,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
           {account.last_synced_at && <span className="text-xs text-zinc-500">Dernière synchronisation : {formatDateTime(account.last_synced_at)}</span>}
         </div>
 
-        <FilterTabs
-          items={PERIODS.map((p) =>
-            ent.isPremium || FREE_PERIOD_KEYS.includes(p.key)
-              ? { label: p.label, href: link({ periode: p.key }), active: p.key === period.key }
-              : { label: `${p.label} · Premium`, href: '/premium', active: false },
-          )}
-        />
-        {periodLocked && <div className="mt-4"><PremiumLock title="Analyse historique approfondie">Les périodes de 6 mois, 1 an et carrière sont réservées aux membres Premium. La période de 30 jours est affichée à la place.</PremiumLock></div>}
+        <FilterTabs items={PERIODS.map((p) => ({ label: p.label, href: link({ periode: p.key }), active: p.key === period.key }))} />
 
         {!perf ? (
           <div className="mt-6"><ErrorState /></div>
@@ -213,7 +201,7 @@ export default async function PerformancesPage({ searchParams }: Props) {
             {show('ai') && (
               <>
                 <SectionTitle>Rapport IA</SectionTitle>
-                <Card className="p-5"><AiReportPanel kind="performance" targetId={account.id} period={period.key} initial={reports} isPremium={ent.isPremium} loggedIn /></Card>
+                <Card className="p-5"><AiReportPanel kind="performance" targetId={account.id} period={period.key} initial={reports} loggedIn /></Card>
               </>
             )}
 
@@ -231,49 +219,40 @@ export default async function PerformancesPage({ searchParams }: Props) {
               </>
             )}
 
-            {!ent.isPremium ? (
+            {show('advanced') && (
               <>
                 <SectionTitle>Statistiques avancées</SectionTitle>
-                <PremiumLock title="Statistiques avancées">Moyennes détaillées, résultats par carte, personnage et rôle, et graphiques supplémentaires sont réservés aux membres Premium.</PremiumLock>
+                {advancedRows.length === 0 ? (
+                  <EmptyState>Aucune statistique détaillée enregistrée pour cette période.</EmptyState>
+                ) : (
+                  <Card className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-left text-zinc-400"><th className="px-4 py-3">Statistique</th><th className="px-4 py-3 text-right">Moyenne par partie</th><th className="px-4 py-3 text-right">Parties renseignées</th></tr></thead>
+                      <tbody>
+                        {advancedRows.map((d) => (
+                          <tr key={d.key} className="border-t border-[var(--border)]">
+                            <td className="px-4 py-2">{d.label}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">{perf.stat_averages[d.key].avg}{d.unit ? ` ${d.unit}` : ''}</td>
+                            <td className="px-4 py-2 text-right tabular-nums text-zinc-400">{perf.stat_averages[d.key].n} / {perf.played}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </Card>
+                )}
               </>
-            ) : (
+            )}
+            {show('dims') && (
+              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                <DimTable title="Par carte" rows={perf.by_map} />
+                <DimTable title="Par personnage" rows={perf.by_character} />
+                <DimTable title="Par rôle" rows={perf.by_role} />
+              </div>
+            )}
+            {show('extra_chart') && perf.by_map.length > 0 && (
               <>
-                {show('advanced') && (
-                  <>
-                    <SectionTitle>Statistiques avancées</SectionTitle>
-                    {advancedRows.length === 0 ? (
-                      <EmptyState>Aucune statistique détaillée enregistrée pour cette période.</EmptyState>
-                    ) : (
-                      <Card className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="text-left text-zinc-400"><th className="px-4 py-3">Statistique</th><th className="px-4 py-3 text-right">Moyenne par partie</th><th className="px-4 py-3 text-right">Parties renseignées</th></tr></thead>
-                          <tbody>
-                            {advancedRows.map((d) => (
-                              <tr key={d.key} className="border-t border-[var(--border)]">
-                                <td className="px-4 py-2">{d.label}</td>
-                                <td className="px-4 py-2 text-right tabular-nums">{perf.stat_averages[d.key].avg}{d.unit ? ` ${d.unit}` : ''}</td>
-                                <td className="px-4 py-2 text-right tabular-nums text-zinc-400">{perf.stat_averages[d.key].n} / {perf.played}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </Card>
-                    )}
-                  </>
-                )}
-                {show('dims') && (
-                  <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                    <DimTable title="Par carte" rows={perf.by_map} />
-                    <DimTable title="Par personnage" rows={perf.by_character} />
-                    <DimTable title="Par rôle" rows={perf.by_role} />
-                  </div>
-                )}
-                {show('extra_chart') && perf.by_map.length > 0 && (
-                  <>
-                    <SectionTitle>Taux de victoire par carte</SectionTitle>
-                    <Card className="p-5"><DimChart rows={perf.by_map} /></Card>
-                  </>
-                )}
+                <SectionTitle>Taux de victoire par carte</SectionTitle>
+                <Card className="p-5"><DimChart rows={perf.by_map} /></Card>
               </>
             )}
           </>
@@ -310,12 +289,8 @@ export default async function PerformancesPage({ searchParams }: Props) {
           </>
         )}
 
-        {ent.isPremium && (
-          <>
-            <SectionTitle>Personnaliser mon tableau de bord</SectionTitle>
-            <Card className="p-5"><DashboardCustomizer initial={cfg} sections={SECTIONS} periods={PERIODS.map((p) => ({ key: p.key, label: p.label }))} /></Card>
-          </>
-        )}
+        <SectionTitle>Personnaliser mon tableau de bord</SectionTitle>
+        <Card className="p-5"><DashboardCustomizer initial={cfg} sections={SECTIONS} periods={PERIODS.map((p) => ({ key: p.key, label: p.label }))} /></Card>
 
         <div className="mt-10 flex justify-end"><DeleteAccountButton accountId={account.id} name={account.display_name ?? account.game.name} /></div>
       </>
@@ -326,7 +301,6 @@ export default async function PerformancesPage({ searchParams }: Props) {
     <main className="mx-auto max-w-5xl px-6 py-10">
       <PageHeader title="Mes performances" subtitle="Suivez vos parties et votre progression, jeu par jeu.">
         <span className="flex gap-4 text-sm">
-          {!ent.isPremium && <Link href="/premium" className="text-violet-300 hover:underline">Passer Premium</Link>}
           <Link href="/profil/comparateur" className="text-[var(--accent-blue)] hover:underline">Comparateur</Link>
           <Link href="/profil" className="text-[var(--accent-blue)] hover:underline">← Mon profil</Link>
         </span>
