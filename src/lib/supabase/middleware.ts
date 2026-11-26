@@ -1,8 +1,10 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 
 const PROTECTED_PREFIXES = ['/profil', '/messages', '/notifications', '/moderation'];
+
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /** Rafraîchit la session Supabase et protège les routes privées. */
 export async function updateSession(request: NextRequest) {
@@ -11,7 +13,7 @@ export async function updateSession(request: NextRequest) {
   const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll(list) {
+      setAll(list: CookieToSet[]) {
         list.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
