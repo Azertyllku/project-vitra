@@ -45,7 +45,7 @@ export default async function TournoiPage({ params }: Props) {
       .limit(50)
       .returns<{ rank: number; points: number; wins: number; losses: number; team: TeamLite | null }[]>(),
     fetchMatches({ tournamentId: tournament.id, limit: 30, ascending: true }),
-    ent.isPremium ? fetchReports('tournament_id', tournament.id, 'tournament') : Promise.resolve([]),
+    ent.userId ? fetchReports('tournament_id', tournament.id, 'tournament') : Promise.resolve([]),
   ]);
 
   const prize = formatMoney(tournament.prize_pool, tournament.currency);
@@ -124,7 +124,7 @@ export default async function TournoiPage({ params }: Props) {
 
       <SectionTitle>Résumé IA</SectionTitle>
       <Card className="p-5">
-        <AiReportPanel kind="tournament" targetId={tournament.id} initial={reports} isPremium={ent.isPremium} loggedIn={Boolean(ent.userId)} />
+        <AiReportPanel kind="tournament" targetId={tournament.id} initial={reports} loggedIn={Boolean(ent.userId)} />
       </Card>
     </main>
   );

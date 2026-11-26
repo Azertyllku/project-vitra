@@ -27,7 +27,7 @@ export default async function MatchPage({ params }: Props) {
   const ent = await getEntitlements();
   const [{ rows, definitions }, reports] = await Promise.all([
     fetchMatchStats(match.id, match.game_id),
-    ent.isPremium ? fetchReports('match_id', match.id, 'match') : Promise.resolve([]),
+    ent.userId ? fetchReports('match_id', match.id, 'match') : Promise.resolve([]),
   ]);
   const showScore = match.status === 'live' || match.status === 'finished';
 
@@ -123,7 +123,7 @@ export default async function MatchPage({ params }: Props) {
 
       <SectionTitle>Résumé IA</SectionTitle>
       <Card className="p-5">
-        <AiReportPanel kind="match" targetId={match.id} initial={reports} isPremium={ent.isPremium} loggedIn={Boolean(ent.userId)} />
+        <AiReportPanel kind="match" targetId={match.id} initial={reports} loggedIn={Boolean(ent.userId)} />
       </Card>
     </main>
   );
