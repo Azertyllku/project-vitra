@@ -45,7 +45,7 @@ export async function SiteHeader() {
   const mobileAccount = viewer
     ? [
         { label: 'Messages', href: '/messages' },
-        ...(viewer.isStaff ? [{ label: 'Modération', href: '/moderation' }] : []),
+        ...(viewer.isStaff ? [{ label: 'Modération', href: '/moderation' }, { label: 'Administration', href: '/admin' }] : []),
         { label: 'Mon profil', href: '/profil' },
       ]
     : [
@@ -76,6 +76,7 @@ export async function SiteHeader() {
               <div className="hidden items-center gap-1 lg:flex">
                 <NavLink href="/messages">Messages</NavLink>
                 {viewer.isStaff && <NavLink href="/moderation">Modération</NavLink>}
+                {viewer.isStaff && <NavLink href="/admin">Admin</NavLink>}
                 <Link href="/profil" className="ml-1 whitespace-nowrap rounded-full border border-[var(--border)] px-4 py-1.5 text-sm text-zinc-100 transition-colors hover:border-[var(--accent)] hover:bg-white/5">
                   Mon profil
                 </Link>

@@ -13,17 +13,18 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-function isActive(pathname: string, href: string) {
-  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+function isActive(pathname: string, href: string, exact = false) {
+  if (href === '/' || exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 const base = 'whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors';
 const on = 'bg-white/10 text-white';
 const off = 'text-zinc-300 hover:bg-white/5 hover:text-white';
 
-/** Lien de navigation avec état actif. */
-export function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  const active = isActive(usePathname(), href);
+/** Lien de navigation avec état actif (`exact` : actif uniquement sur l'adresse exacte). */
+export function NavLink({ href, children, exact = false }: { href: string; children: React.ReactNode; exact?: boolean }) {
+  const active = isActive(usePathname(), href, exact);
   return (
     <Link href={href} aria-current={active ? 'page' : undefined} className={`${base} ${active ? on : off}`}>
       {children}

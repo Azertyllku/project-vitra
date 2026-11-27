@@ -75,7 +75,7 @@ export default async function AdminEditPage({ params, searchParams }: Props) {
   }
 
   const error = ERRORS[one(sp.erreur) ?? ''];
-  const title = isNew ? `Ajouter un ${entity.singular}` : `Modifier ${entity.singular}`;
+  const title = isNew ? `Ajouter — ${entity.plural}` : `Modifier — ${entity.plural}`;
 
   return (
     <>
@@ -94,7 +94,7 @@ export default async function AdminEditPage({ params, searchParams }: Props) {
       </Card>
       {!isNew && (
         <div className="mt-8 flex justify-end">
-          <AdminDeleteButton action={deleteEntity.bind(null, key, id)} label={`ce ${entity.singular}`} />
+          <AdminDeleteButton action={deleteEntity.bind(null, key, id)} label="cet élément" />
         </div>
       )}
     </>

@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <nav aria-label="Administration" className="mb-8 flex flex-wrap items-center gap-1 border-b border-[var(--border)] pb-4">
-        <NavLink href="/admin">Tableau de bord</NavLink>
+        <NavLink href="/admin" exact>Tableau de bord</NavLink>
         {ENTITY_ORDER.map((key) => (
           <NavLink key={key} href={`/admin/${key}`}>{ENTITIES[key].plural}</NavLink>
         ))}

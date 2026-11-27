@@ -25,4 +25,5 @@ Sans clé, les rapports restent disponibles, clairement étiquetés « Rapport a
 - Les rapports IA lisent les données avec les droits du membre ; seules des données agrégées et nettoyées sont transmises au modèle,
   qui a pour consigne de ne rien inventer. Les données envoyées sont conservées dans `ai_reports.input_summary`.
 - Limite : 10 rapports / 24 h / membre. Les clés IA ne sont jamais côté navigateur.
-- Les Edge Functions Stripe restent déployées mais refusent toute requête tant que `billing_enabled` est à `false`.
+- Les Edge Functions de paiement restent déployées. Aucune offre n'étant active et aucune clé Stripe configurée, elles ne peuvent
+  pas aboutir ; elles pourront être retirées si le paiement est définitivement abandonné.

@@ -40,7 +40,7 @@ export default async function AdminListPage({ params, searchParams }: Props) {
     <>
       <PageHeader title={entity.plural} subtitle={entity.description}>
         <Link href={`/admin/${key}/nouveau`} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
-          Ajouter {/^[aeiouyéèh]/i.test(entity.singular) ? 'un' : 'un'} {entity.singular}
+          + Ajouter
         </Link>
       </PageHeader>
 
@@ -54,7 +54,7 @@ export default async function AdminListPage({ params, searchParams }: Props) {
       {error ? (
         <ErrorState />
       ) : rows.length === 0 ? (
-        <EmptyState>Aucun élément{q ? ' pour cette recherche' : ' pour le moment'}.</EmptyState>
+        <EmptyState>Aucun élément{q ? ' pour cette recherche' : ' pour le moment'}. Utilisez « + Ajouter » pour créer le premier.</EmptyState>
       ) : (
         <>
           <Card className="overflow-x-auto">
