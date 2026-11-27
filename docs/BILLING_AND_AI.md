@@ -1,46 +1,28 @@
-# Premium, paiements Stripe et rapports IA
+# Facturation (désactivée) et rapports IA
 
-## État à la livraison
+## État actuel : projet gratuit
 
-Tout est **construit et déployé, mais désactivé** tant que vous n'avez pas fourni vos clés :
+Le projet reste **gratuit pour le moment**. L'offre Premium n'est plus proposée : plus de page `/premium`, plus de verrous.
+Statistiques avancées, comparateur détaillé, rapports IA, tableau de bord personnalisable et alertes de série sont ouverts
+à tout membre connecté (migration `018_free_for_all_members`).
+
+Pour mémoire, l'infrastructure de paiement existe toujours mais est **inutilisée** : tables `subscription_plans`, `subscriptions`,
+`payments`, `stripe_*`, fonctions Edge `create-checkout-session`, `create-portal-session`, `stripe-webhook`, réglage
+`billing_enabled = false` et offres inactives. Rien n'a été supprimé en base. Une future offre payante demandera de recréer
+l'interface d'abonnement (la page et les boutons ont été retirés du site) et de redécider quelles fonctionnalités restent gratuites.
+
+## Rapports IA
 
 | Élément | État |
 |---|---|
-| Paiement | `billing_enabled = false` (réglage public) ; offres `premium_monthly` / `premium_yearly` inactives, **sans prix** |
-| Rapports IA | fonctionnent dès maintenant en mode **règles** (provider `rules`) ; modèle de langage actif seulement avec `ANTHROPIC_API_KEY` |
-| Alertes de série, tableau de bord personnalisable, statistiques avancées | actifs pour tout membre ayant le rôle `premium` (ou admin / super_admin) |
+| Rapports IA | fonctionnent en mode **règles** (`provider = 'rules'`) ; modèle de langage actif seulement avec `ANTHROPIC_API_KEY` |
 
-Le site reste entièrement utilisable sans paiement.
-
-## Ce qu'il faut obtenir et configurer
-
-### Stripe
-
-1. Un compte Stripe (mode test d'abord).
-2. Dans Stripe : créer un produit « Premium » avec deux prix récurrents (mensuel, annuel) — **vous décidez des tarifs**.
-3. Dans Supabase (Edge Functions > Secrets) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SITE_URL` (ex. `https://votre-domaine.fr`).
-4. Dans Stripe > Webhooks : ajouter l'endpoint `https://<projet>.supabase.co/functions/v1/stripe-webhook` pour les événements
-   `checkout.session.completed`, `customer.subscription.created|updated|deleted`, `invoice.paid`, `invoice.payment_failed`.
-5. Activer le portail de facturation Stripe (Paramètres > Facturation > Portail client).
-6. En SQL (ou depuis l'administration, phase 8) : renseigner `subscription_plans.stripe_price_id`, `price_cents`, passer `is_active = true`,
-   puis `update platform_settings set value = 'true' where key = 'billing_enabled'`.
-
-### IA (facultatif)
-
-`ANTHROPIC_API_KEY` (secret Edge Functions) ; `AI_MODEL` pour changer de modèle (défaut `claude-sonnet-5-5`).
-Sans clé, les rapports restent disponibles en mode règles, clairement étiquetés « Rapport automatique ».
+Configuration (facultative) : secret Edge Functions `ANTHROPIC_API_KEY` ; `AI_MODEL` pour changer de modèle (défaut `claude-sonnet-5-5`).
+Sans clé, les rapports restent disponibles, clairement étiquetés « Rapport automatique ».
 
 ## Sécurité
 
-- `stripe-webhook` est déployée sans JWT (Stripe n'en envoie pas) : l'authenticité repose sur la **signature HMAC** (tolérance anti-rejeu 5 min,
-  comparaison à temps constant), l'idempotence sur `stripe_events`.
-- Le rôle `premium` n'est attribué que par ce webhook (ou par un super_admin) : un membre ne peut pas se l'attribuer (RLS testée).
-- Les clés Stripe et IA ne sont jamais côté navigateur.
 - Les rapports IA lisent les données avec les droits du membre ; seules des données agrégées et nettoyées sont transmises au modèle,
   qui a pour consigne de ne rien inventer. Les données envoyées sont conservées dans `ai_reports.input_summary`.
-- Limite : 10 rapports / 24 h / membre.
-
-## Accès Premium
-
-`active` et `trialing` donnent le rôle ; `past_due` conserve l'accès pendant les relances de paiement ; `canceled`, `unpaid`,
-`incomplete_expired` le retirent.
+- Limite : 10 rapports / 24 h / membre. Les clés IA ne sont jamais côté navigateur.
+- Les Edge Functions Stripe restent déployées mais refusent toute requête tant que `billing_enabled` est à `false`.
