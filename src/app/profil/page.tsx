@@ -45,6 +45,7 @@ export default async function ProfilPage() {
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <Link href="/profil/performances" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">Mes performances</Link>
+        <Link href="/profil/comptes" className={link}>Comptes de jeu</Link>
         <Link href="/profil/comparateur" className={link}>Comparateur</Link>
         <Link href="/profil/videos" className={link}>Mes vidéos</Link>
         <Link href="/messages" className={link}>Messages</Link>
