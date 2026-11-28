@@ -21,6 +21,7 @@ export interface Field {
 }
 
 type Row = Record<string, unknown>;
+type Validator = (values: Row) => Record<string, string>;
 
 export interface EntityConfig {
   key: string;
@@ -34,7 +35,7 @@ export interface EntityConfig {
   readOnly?: boolean;
   fields: Field[];
   /** Règles entre champs, appliquées après la validation de chaque champ. */
-  validate?: (values: Row) => Record<string, string>;
+  validate?: Validator;
   list: { select: string; orderBy: string; ascending: boolean; headers: string[]; cells: (row: Row) => string[] };
 }
 
@@ -46,6 +47,15 @@ const nested = (value: unknown, key: string): string => {
   return object && typeof object === 'object' ? s((object as Row)[key]) : '—';
 };
 const yesNo = (value: unknown) => (value ? 'Oui' : 'Non');
+
+/** Règle « la fin ne peut pas précéder le début » entre deux champs de date (les formats ISO se comparent comme du texte). */
+const endAfterStart = (from: string, to: string, message: string): Validator => (values) => {
+  const start = values[from];
+  const end = values[to];
+  const errors: Record<string, string> = {};
+  if (typeof start === 'string' && typeof end === 'string' && end < start) errors[to] = message;
+  return errors;
+};
 
 const DATA_SOURCES: Option[] = [
   { value: 'manual', label: 'Saisie manuelle' },
@@ -77,13 +87,13 @@ const EMBED_RULES: Record<string, { pattern: RegExp; hint: string }> = {
   hls: { pattern: /^https:\/\/[^\s"'<>]+$/, hint: 'URL https du flux HLS' },
 };
 
-function mediaRules(values: Row): Record<string, string> {
+const mediaRules: Validator = (values) => {
   const errors: Record<string, string> = {};
   const rule = EMBED_RULES[String(values.provider)];
   if (rule && typeof values.embed_ref === 'string' && !rule.pattern.test(values.embed_ref)) errors.embed_ref = `Format attendu : ${rule.hint}.`;
   if (values.rights_status === 'authorized' && !values.rights_holder) errors.rights_holder = 'Titulaire des droits obligatoire pour un contenu autorisé.';
   return errors;
-}
+};
 
 const common = {
   logo: { name: 'logo_url', label: 'Logo (URL)', type: 'url' } as Field,
@@ -114,14 +124,14 @@ export const ENTITIES: Record<string, EntityConfig> = {
     slugFrom: 'name', searchField: 'name',
     fields: [
       { name: 'name', label: 'Nom', type: 'text', required: true, max: 80 },
-      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du nom. Lettres minuscules, chiffres et tirets.' },
+      { name: 'slug', label: 'Identifiant d’URL', type: 'slug', help: 'Laissé vide, il est déduit du nom. Lettres minuscules, chiffres et tirets.' },
       { name: 'short_name', label: 'Nom court', type: 'text', max: 30 },
       { name: 'genre', label: 'Genre', type: 'text', max: 60 },
       { name: 'description', label: 'Description', type: 'textarea' },
       common.logo,
       common.banner,
-      { name: 'accent_color', label: 'Couleur d\u2019accent', type: 'color', help: 'Format #RRGGBB, par exemple #7C3AED.' },
-      { name: 'sort_order', label: 'Ordre d\u2019affichage', type: 'integer', min: 0, max: 9999, default: '100' },
+      { name: 'accent_color', label: 'Couleur d’accent', type: 'color', help: 'Format #RRGGBB, par exemple #7C3AED.' },
+      { name: 'sort_order', label: 'Ordre d’affichage', type: 'integer', min: 0, max: 9999, default: '100' },
       { name: 'is_active', label: 'Actif (visible sur le site)', type: 'checkbox', default: true },
     ],
     list: {
@@ -135,7 +145,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     slugFrom: 'name', searchField: 'name',
     fields: [
       { name: 'name', label: 'Nom', type: 'text', required: true, max: 80 },
-      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du nom.' },
+      { name: 'slug', label: 'Identifiant d’URL', type: 'slug', help: 'Laissé vide, il est déduit du nom.' },
       { name: 'tag', label: 'Tag', type: 'text', max: 10 },
       { name: 'country_code', label: 'Pays (code à 2 lettres)', type: 'country' },
       common.logo,
@@ -154,7 +164,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     slugFrom: 'nickname', searchField: 'nickname',
     fields: [
       { name: 'nickname', label: 'Pseudo', type: 'text', required: true, max: 40 },
-      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du pseudo.' },
+      { name: 'slug', label: 'Identifiant d’URL', type: 'slug', help: 'Laissé vide, il est déduit du pseudo.' },
       { name: 'real_name', label: 'Nom réel', type: 'text', max: 80 },
       { name: 'country_code', label: 'Pays (code à 2 lettres)', type: 'country' },
       { name: 'photo_url', label: 'Photo (URL)', type: 'url' },
@@ -170,7 +180,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   effectifs: {
-    key: 'effectifs', table: 'team_members', singular: 'effectif', plural: 'Effectifs', description: 'Joueurs et staff de chaque équipe, par jeu. Pour un transfert : renseignez la date de départ dans l\u2019ancienne équipe, puis ajoutez le joueur dans la nouvelle.',
+    key: 'effectifs', table: 'team_members', singular: 'effectif', plural: 'Effectifs', description: 'Joueurs et staff de chaque équipe, par jeu. Pour un transfert : renseignez la date de départ dans l’ancienne équipe, puis ajoutez le joueur dans la nouvelle.',
     fields: [
       { name: 'team_id', label: 'Équipe', type: 'relation', required: true, relation: { table: 'teams', label: 'name' } },
       { name: 'player_id', label: 'Joueur', type: 'relation', required: true, relation: { table: 'players', label: 'nickname' } },
@@ -186,9 +196,9 @@ export const ENTITIES: Record<string, EntityConfig> = {
         ],
       },
       { name: 'joined_at', label: 'Arrivée', type: 'date' },
-      { name: 'left_at', label: 'Départ (vide : toujours dans l\u2019équipe)', type: 'date' },
+      { name: 'left_at', label: 'Départ (vide : toujours dans l’équipe)', type: 'date' },
     ],
-    validate: (v) => (typeof v.joined_at === 'string' && typeof v.left_at === 'string' && v.left_at < v.joined_at ? { left_at: 'Le départ doit suivre l\u2019arrivée.' } : {}),
+    validate: endAfterStart('joined_at', 'left_at', 'Le départ doit suivre l’arrivée.'),
     list: {
       select: 'id, role, joined_at, left_at, team:teams(name), player:players(nickname), game:games(name)', orderBy: 'joined_at', ascending: false,
       headers: ['Joueur', 'Équipe', 'Jeu', 'Rôle', 'Arrivée', 'Départ'],
@@ -200,7 +210,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     slugFrom: 'name', searchField: 'name',
     fields: [
       { name: 'name', label: 'Nom', type: 'text', required: true, max: 120 },
-      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du nom.' },
+      { name: 'slug', label: 'Identifiant d’URL', type: 'slug', help: 'Laissé vide, il est déduit du nom.' },
       { name: 'game_id', label: 'Jeu', type: 'relation', required: true, relation: { table: 'games', label: 'name' } },
       { name: 'organizer', label: 'Organisateur', type: 'text', max: 80 },
       {
@@ -234,7 +244,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
       { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'data_source', label: 'Provenance des données', type: 'select', default: 'manual', options: DATA_SOURCES },
     ],
-    validate: (v) => (typeof v.starts_at === 'string' && typeof v.ends_at === 'string' && v.ends_at < v.starts_at ? { ends_at: 'La fin doit être après le début.' } : {}),
+    validate: endAfterStart('starts_at', 'ends_at', 'La fin doit être après le début.'),
     list: {
       select: 'id, name, slug, status, starts_at, game:games(name)', orderBy: 'starts_at', ascending: false,
       headers: ['Nom', 'Jeu', 'Statut', 'Début'],
@@ -242,7 +252,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   phases: {
-    key: 'phases', table: 'tournament_stages', singular: 'phase', plural: 'Phases', description: 'Phases d\u2019un tournoi (groupes, arbre, ligue…).',
+    key: 'phases', table: 'tournament_stages', singular: 'phase', plural: 'Phases', description: 'Phases d’un tournoi (groupes, arbre, ligue…).',
     fields: [
       { name: 'tournament_id', label: 'Tournoi', type: 'relation', required: true, relation: { table: 'tournaments', label: 'name' } },
       { name: 'name', label: 'Nom de la phase', type: 'text', required: true, max: 80 },
@@ -265,7 +275,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   groupes: {
-    key: 'groupes', table: 'tournament_groups', singular: 'groupe', plural: 'Groupes', description: 'Groupes d\u2019une phase de tournoi.',
+    key: 'groupes', table: 'tournament_groups', singular: 'groupe', plural: 'Groupes', description: 'Groupes d’une phase de tournoi.',
     fields: [
       { name: 'stage_id', label: 'Phase', type: 'relation', required: true, relation: { table: 'tournament_stages', label: 'name' } },
       { name: 'name', label: 'Nom du groupe', type: 'text', required: true, max: 60 },
@@ -326,11 +336,11 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   actualites: {
-    key: 'actualites', table: 'articles', singular: 'article', plural: 'Actualités', description: 'Articles du site. Un article n\u2019est visible du public qu\u2019une fois publié (ou programmé pour une date passée).',
+    key: 'actualites', table: 'articles', singular: 'article', plural: 'Actualités', description: 'Articles du site. Un article n’est visible du public qu’une fois publié (ou programmé pour une date passée).',
     slugFrom: 'title', searchField: 'title',
     fields: [
       { name: 'title', label: 'Titre', type: 'text', required: true, max: 160 },
-      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du titre.' },
+      { name: 'slug', label: 'Identifiant d’URL', type: 'slug', help: 'Laissé vide, il est déduit du titre.' },
       { name: 'category', label: 'Catégorie', type: 'select', default: 'actualite', options: ARTICLE_CATEGORIES },
       { name: 'game_id', label: 'Jeu (facultatif)', type: 'relation', relation: { table: 'games', label: 'name' } },
       { name: 'excerpt', label: 'Chapô (résumé de 400 caractères maximum)', type: 'textarea', max: 400, rows: 3 },
@@ -343,8 +353,8 @@ export const ENTITIES: Record<string, EntityConfig> = {
           { value: 'published', label: 'Publié' },
         ],
       },
-      { name: 'published_at', label: 'Date de publication (heure de Paris)', type: 'datetime', help: 'Vide : publication immédiate à l\u2019enregistrement. Date future : publication programmée.' },
-      { name: 'source_name', label: 'Source (nom)', type: 'text', max: 120, help: 'Si l\u2019article reprend une information d\u2019un tiers, citez-le.' },
+      { name: 'published_at', label: 'Date de publication (heure de Paris)', type: 'datetime', help: 'Vide : publication immédiate à l’enregistrement. Date future : publication programmée.' },
+      { name: 'source_name', label: 'Source (nom)', type: 'text', max: 120, help: 'Si l’article reprend une information d’un tiers, citez-le.' },
       { name: 'source_url', label: 'Source (URL)', type: 'url' },
     ],
     list: {
@@ -378,7 +388,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   sources: {
-    key: 'sources', table: 'stream_sources', singular: 'source', plural: 'Sources de diffusion', description: 'Flux vidéo d\u2019une diffusion, avec gestion des droits de diffusion.',
+    key: 'sources', table: 'stream_sources', singular: 'source', plural: 'Sources de diffusion', description: 'Flux vidéo d’une diffusion, avec gestion des droits de diffusion.',
     fields: [
       { name: 'stream_id', label: 'Diffusion', type: 'relation', required: true, relation: { table: 'streams', label: 'title' } },
       { name: 'provider', label: 'Type de source', type: 'select', required: true, default: 'twitch_channel', options: PROVIDERS_LIVE },
@@ -433,7 +443,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   integrations: {
-    key: 'integrations', table: 'game_api_integrations', singular: 'intégration', plural: 'Sources de données', description: 'Connecteurs d\u2019API par jeu (réservé aux administrateurs). Les clés restent dans les secrets Supabase : ici, seul leur nom est noté.',
+    key: 'integrations', table: 'game_api_integrations', singular: 'intégration', plural: 'Sources de données', description: 'Connecteurs d’API par jeu (réservé aux administrateurs). Les clés restent dans les secrets Supabase : ici, seul leur nom est noté.',
     fields: [
       { name: 'game_id', label: 'Jeu', type: 'relation', required: true, relation: { table: 'games', label: 'name' } },
       { name: 'provider', label: 'Fournisseur', type: 'text', required: true, max: 40, help: 'Par exemple opendota, riot, blizzard, pubg.' },
@@ -463,7 +473,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
     },
   },
   journal: {
-    key: 'journal', table: 'admin_logs', singular: 'action', plural: 'Journal d\u2019administration', description: 'Qui a fait quoi dans l\u2019administration (lecture seule, réservé aux administrateurs).',
+    key: 'journal', table: 'admin_logs', singular: 'action', plural: 'Journal d’administration', description: 'Qui a fait quoi dans l’administration (lecture seule, réservé aux administrateurs).',
     readOnly: true, fields: [],
     list: {
       select: 'id, action, target_type, summary, created_at, actor:profiles(username)', orderBy: 'created_at', ascending: false,
