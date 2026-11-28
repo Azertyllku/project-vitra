@@ -30,6 +30,8 @@ const OWN: [string, string][] = [
   ['user_sanctions', 'user_id'],
 ];
 
+type Result = PromiseLike<{ data: unknown; error: unknown }>;
+
 /** Export des données personnelles du membre connecté (droit d'accès et de portabilité), lues avec ses propres droits. */
 export async function GET() {
   const supabase = await createClient();
@@ -38,21 +40,21 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Connexion requise.' }, { status: 401 });
 
-  const read = async (table: string, build: (query: ReturnType<typeof supabase.from>) => unknown) => {
-    const { data, error } = (await build(supabase.from(table))) as { data: unknown; error: unknown };
-    return [table, error ? { erreur: 'table inaccessible avec vos droits' } : data] as const;
+  const run = async (key: string, query: Result) => {
+    const { data, error } = await query;
+    return [key, error ? { erreur: 'données inaccessibles avec vos droits' } : data] as const;
   };
 
   const entries = await Promise.all([
-    ...OWN.map(([table, column]) => read(table, (q) => q.select('*').eq(column, user.id).limit(LIMIT))),
-    read('abonnements_donnes', (q) => q.select('followed_id, created_at').eq('follower_id', user.id).limit(LIMIT)),
-    read('abonnes', (q) => q.select('follower_id, created_at').eq('followed_id', user.id).limit(LIMIT)),
-    read('messages_prives', (q) => q.select('*').or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).limit(LIMIT)),
+    ...OWN.map(([table, column]) => run(table, supabase.from(table).select('*').eq(column, user.id).limit(LIMIT))),
+    run('abonnements', supabase.from('follows').select('followed_id, created_at').eq('follower_id', user.id).limit(LIMIT)),
+    run('abonnes', supabase.from('follows').select('follower_id, created_at').eq('followed_id', user.id).limit(LIMIT)),
+    run('messages_prives', supabase.from('messages').select('*').or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).limit(LIMIT)),
   ]);
-  // Les trois dernières entrées lisent respectivement follows (x2) et messages : on corrige leurs noms de table d'origine.
+
   const body = {
     exported_at: new Date().toISOString(),
-    notice: `Export de vos données personnelles (limite de ${LIMIT} lignes par tableau). Les tables inaccessibles avec vos droits sont signalées.`,
+    notice: `Export de vos données personnelles (limite de ${LIMIT} lignes par tableau). Les tableaux inaccessibles avec vos droits sont signalés.`,
     account: { id: user.id, email: user.email, created_at: user.created_at },
     data: Object.fromEntries(entries),
   };

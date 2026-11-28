@@ -50,6 +50,7 @@ export default async function ProfilPage() {
         <Link href="/profil/videos" className={link}>Mes vidéos</Link>
         <Link href="/messages" className={link}>Messages</Link>
         <Link href="/profil/notifications" className={link}>Notifications</Link>
+        <Link href="/profil/donnees" className={link}>Mes données</Link>
         <SignOutButton />
       </div>
     </main>
