@@ -12,10 +12,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!viewer) redirect('/connexion?next=/admin');
   if (!viewer.isStaff) notFound();
 
-  const groups: AdminNavGroup[] = ENTITY_GROUPS.map((group) => ({
-    title: group.title,
-    items: [...group.keys.map((key) => ({ label: ENTITIES[key].plural, href: `/admin/${key}` })), ...(group.links ?? [])],
-  }));
+  const groups: AdminNavGroup[] = [
+    ...ENTITY_GROUPS.map((group) => ({
+      title: group.title,
+      items: [...group.keys.map((key) => ({ label: ENTITIES[key].plural, href: `/admin/${key}` })), ...(group.links ?? [])],
+    })),
+    { title: 'Outils', items: [{ label: 'Import CSV', href: '/admin/import' }] },
+  ];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 lg:flex-row lg:gap-10">
