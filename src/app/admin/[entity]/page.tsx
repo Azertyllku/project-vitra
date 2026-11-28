@@ -39,9 +39,11 @@ export default async function AdminListPage({ params, searchParams }: Props) {
   return (
     <>
       <PageHeader title={entity.plural} subtitle={entity.description}>
-        <Link href={`/admin/${key}/nouveau`} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
-          + Ajouter
-        </Link>
+        {!entity.readOnly && (
+          <Link href={`/admin/${key}/nouveau`} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium hover:brightness-110">
+            + Ajouter
+          </Link>
+        )}
       </PageHeader>
 
       {entity.searchField && (
@@ -54,7 +56,7 @@ export default async function AdminListPage({ params, searchParams }: Props) {
       {error ? (
         <ErrorState />
       ) : rows.length === 0 ? (
-        <EmptyState>Aucun élément{q ? ' pour cette recherche' : ' pour le moment'}. Utilisez « + Ajouter » pour créer le premier.</EmptyState>
+        <EmptyState>Aucun élément{q ? ' pour cette recherche' : ' pour le moment'}.{entity.readOnly ? '' : ' Utilisez « + Ajouter » pour créer le premier.'}</EmptyState>
       ) : (
         <>
           <Card className="overflow-x-auto">
@@ -62,16 +64,18 @@ export default async function AdminListPage({ params, searchParams }: Props) {
               <thead>
                 <tr className="text-left text-zinc-400">
                   {entity.list.headers.map((header) => <th key={header} className="px-4 py-3">{header}</th>)}
-                  <th />
+                  {!entity.readOnly && <th />}
                 </tr>
               </thead>
               <tbody>
                 {rows.slice(0, PAGE_SIZE).map((row) => (
-                  <tr key={String(row.id)} className="border-t border-[var(--border)]">
+                  <tr key={String(row.id)} className="border-t border-[var(--border)] align-top">
                     {entity.list.cells(row).map((cell, index) => <td key={index} className="px-4 py-2">{cell}</td>)}
-                    <td className="px-4 py-2 text-right">
-                      <Link href={`/admin/${key}/${row.id}`} className="text-[var(--accent-blue)] hover:underline">Modifier</Link>
-                    </td>
+                    {!entity.readOnly && (
+                      <td className="px-4 py-2 text-right">
+                        <Link href={`/admin/${key}/${row.id}`} className="text-[var(--accent-blue)] hover:underline">Modifier</Link>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

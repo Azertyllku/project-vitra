@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { ENTITIES, type EntityConfig, type FormState } from '@/lib/admin/entities';
+import { logAdmin } from '@/lib/admin/log';
 import { parisInputToIso } from '@/lib/admin/time';
 import { getViewer } from '@/lib/data/community';
 import { createClient } from '@/lib/supabase/server';
@@ -15,10 +16,10 @@ const slugify = (value: string) =>
 const fail = (message: string, fieldErrors?: Record<string, string>): FormState => ({ ok: false, message, fieldErrors });
 
 function dbError(error: { code?: string }): FormState {
-  if (error.code === '23505') return fail('Cette valeur existe déjà (identifiant d’URL déjà utilisé ?).');
+  if (error.code === '23505') return fail('Cette valeur existe déjà (identifiant d’URL ou association déjà enregistrée ?).');
   if (error.code === '23503') return fail('Référence invalide ou données liées.');
-  if (error.code === '23514') return fail('Une valeur est refusée par la base (dates incohérentes, format invalide…).');
-  if (error.code === '42501') return fail('Droits insuffisants.');
+  if (error.code === '23514') return fail('Une valeur est refusée par la base (dates incohérentes, format invalide, droits non documentés…).');
+  if (error.code === '42501') return fail('Droits insuffisants pour cette action.');
   return fail('Enregistrement impossible, réessayez.');
 }
 
@@ -67,6 +68,10 @@ function parseFields(entity: EntityConfig, form: FormData) {
         if (!/^[A-Za-z]{2}$/.test(text)) errors[field.name] = 'Code à 2 lettres (ex. FR).';
         else values[field.name] = text.toUpperCase();
         break;
+      case 'lang':
+        if (!/^[A-Za-z]{2}$/.test(text)) errors[field.name] = 'Code de langue à 2 lettres (ex. fr).';
+        else values[field.name] = text.toLowerCase();
+        break;
       case 'currency':
         if (!/^[A-Za-z]{3}$/.test(text)) errors[field.name] = 'Code à 3 lettres (ex. EUR).';
         else values[field.name] = text.toUpperCase();
@@ -84,6 +89,10 @@ function parseFields(entity: EntityConfig, form: FormData) {
         else values[field.name] = number;
         break;
       }
+      case 'date':
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(Date.parse(text))) errors[field.name] = 'Date invalide.';
+        else values[field.name] = text;
+        break;
       case 'datetime': {
         const iso = parisInputToIso(text);
         if (!iso) errors[field.name] = 'Date invalide.';
@@ -101,8 +110,8 @@ function parseFields(entity: EntityConfig, form: FormData) {
     }
   }
 
-  if (entity.key === 'tournois' && typeof values.starts_at === 'string' && typeof values.ends_at === 'string' && values.ends_at < values.starts_at) {
-    errors.ends_at = 'La fin doit être après le début.';
+  for (const [name, message] of Object.entries(entity.validate?.(values) ?? {})) {
+    if (!errors[name]) errors[name] = message;
   }
   return { values, errors };
 }
@@ -150,10 +159,13 @@ function refreshSite(entity: EntityConfig) {
   revalidatePath('/', 'layout');
 }
 
+const summaryOf = (values: Record<string, unknown>) => String(values.name ?? values.nickname ?? values.title ?? values.provider ?? '');
+
 /** Crée (id = null) ou modifie un élément. La RLS réserve l'écriture au staff ; le contrôle ici donne un message clair. */
 export async function saveEntity(key: string, id: string | null, _previous: FormState, form: FormData): Promise<FormState> {
   const entity = ENTITIES[key];
   if (!entity) return fail('Type de contenu inconnu.');
+  if (entity.readOnly) return fail('Cette liste est en lecture seule.');
   const viewer = await getViewer();
   if (!viewer?.isStaff) return fail('Accès réservé à l’équipe.');
   if (id && !UUID.test(id)) return fail('Identifiant invalide.');
@@ -187,6 +199,7 @@ export async function saveEntity(key: string, id: string | null, _previous: Form
     if (problem) return problem;
   }
 
+  await logAdmin(supabase, viewer.id, id ? 'update' : 'create', entity.table, rowId, `${entity.plural} : ${summaryOf(values)}`);
   refreshSite(entity);
   if (!id) redirect(`/admin/${key}`);
   return { ok: true, message: 'Modifications enregistrées.' };
@@ -196,11 +209,12 @@ export async function saveEntity(key: string, id: string | null, _previous: Form
 export async function deleteEntity(key: string, id: string): Promise<void> {
   const entity = ENTITIES[key];
   const viewer = await getViewer();
-  if (!entity || !viewer?.isStaff || !UUID.test(id)) redirect('/admin');
+  if (!entity || entity.readOnly || !viewer?.isStaff || !UUID.test(id)) redirect('/admin');
   const supabase = await createClient();
   const { data, error } = await supabase.from(entity.table).delete().eq('id', id).select('id');
   if (error) redirect(`/admin/${key}/${id}?erreur=lie`);
   if (!data || data.length === 0) redirect(`/admin/${key}/${id}?erreur=droits`);
+  await logAdmin(supabase, viewer.id, 'delete', entity.table, id, `${entity.plural} : suppression`);
   refreshSite(entity);
   redirect(`/admin/${key}`);
 }

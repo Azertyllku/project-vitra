@@ -55,14 +55,14 @@ export function AdminForm({
             </select>
           );
         } else {
-          const type = field.type === 'datetime' ? 'datetime-local' : field.type === 'number' || field.type === 'integer' ? 'number' : 'text';
+          const type = field.type === 'datetime' ? 'datetime-local' : field.type === 'date' ? 'date' : field.type === 'number' || field.type === 'integer' ? 'number' : 'text';
           control = (
             <input
               id={id}
               name={field.name}
               type={type}
               step={field.type === 'number' ? 'any' : field.type === 'integer' ? 1 : undefined}
-              min={field.min}
+              min={field.type === 'number' || field.type === 'integer' ? field.min : undefined}
               max={field.type === 'number' || field.type === 'integer' ? field.max : undefined}
               defaultValue={String(value ?? '')}
               className={input}
