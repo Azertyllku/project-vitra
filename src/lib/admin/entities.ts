@@ -13,6 +13,8 @@ export interface Field {
   relation?: { table: string; label: string };
   min?: number;
   max?: number;
+  /** Hauteur d'une zone de texte (lignes). */
+  rows?: number;
   default?: string | boolean;
   /** Champ géré à part (hors de la table principale). */
   virtual?: boolean;
@@ -56,7 +58,16 @@ const RIGHTS: Option[] = [
   { value: 'authorized', label: 'Autorisé (visible du public)' },
   { value: 'revoked', label: 'Retiré' },
 ];
-const RIGHTS_HELP = 'Un contenu n’est visible du public que s’il est « autoris» et que le titulaire des droits est indiqué.';
+const RIGHTS_HELP = 'Un contenu n’est visible du public que s’il est « autorisé » et que le titulaire des droits est indiqué.';
+
+const ARTICLE_CATEGORIES: Option[] = [
+  { value: 'actualite', label: 'Actualité' },
+  { value: 'resultats', label: 'Résultats' },
+  { value: 'transferts', label: 'Transferts' },
+  { value: 'analyse', label: 'Analyse' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'communique', label: 'Communiqué' },
+];
 
 /** Formats acceptés par la base pour chaque type de source vidéo. */
 const EMBED_RULES: Record<string, { pattern: RegExp; hint: string }> = {
@@ -314,6 +325,34 @@ export const ENTITIES: Record<string, EntityConfig> = {
       },
     },
   },
+  actualites: {
+    key: 'actualites', table: 'articles', singular: 'article', plural: 'Actualités', description: 'Articles du site. Un article n\u2019est visible du public qu\u2019une fois publié (ou programmé pour une date passée).',
+    slugFrom: 'title', searchField: 'title',
+    fields: [
+      { name: 'title', label: 'Titre', type: 'text', required: true, max: 160 },
+      { name: 'slug', label: 'Identifiant d\u2019URL', type: 'slug', help: 'Laissé vide, il est déduit du titre.' },
+      { name: 'category', label: 'Catégorie', type: 'select', default: 'actualite', options: ARTICLE_CATEGORIES },
+      { name: 'game_id', label: 'Jeu (facultatif)', type: 'relation', relation: { table: 'games', label: 'name' } },
+      { name: 'excerpt', label: 'Chapô (résumé de 400 caractères maximum)', type: 'textarea', max: 400, rows: 3 },
+      { name: 'body', label: 'Texte', type: 'textarea', required: true, max: 50000, rows: 16, help: 'Texte brut : une ligne vide sépare les paragraphes.' },
+      { name: 'cover_url', label: 'Image de couverture (URL)', type: 'url' },
+      {
+        name: 'status', label: 'Statut', type: 'select', default: 'draft',
+        options: [
+          { value: 'draft', label: 'Brouillon (invisible)' },
+          { value: 'published', label: 'Publié' },
+        ],
+      },
+      { name: 'published_at', label: 'Date de publication (heure de Paris)', type: 'datetime', help: 'Vide : publication immédiate à l\u2019enregistrement. Date future : publication programmée.' },
+      { name: 'source_name', label: 'Source (nom)', type: 'text', max: 120, help: 'Si l\u2019article reprend une information d\u2019un tiers, citez-le.' },
+      { name: 'source_url', label: 'Source (URL)', type: 'url' },
+    ],
+    list: {
+      select: 'id, title, status, category, published_at, game:games(name)', orderBy: 'published_at', ascending: false,
+      headers: ['Titre', 'Catégorie', 'Jeu', 'Statut', 'Publication'],
+      cells: (r) => [s(r.title), ARTICLE_CATEGORIES.find((c) => c.value === r.category)?.label ?? s(r.category), nested(r.game, 'name'), r.status === 'published' ? 'Publié' : 'Brouillon', formatParis(r.published_at)],
+    },
+  },
   diffusions: {
     key: 'diffusions', table: 'streams', singular: 'diffusion', plural: 'Diffusions', description: 'Événements en direct. Les flux vidéo se rattachent à une diffusion dans « Sources ».',
     searchField: 'title',
@@ -435,7 +474,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
 };
 
 export const ENTITY_GROUPS: { title: string; keys: string[]; links?: { label: string; href: string }[] }[] = [
-  { title: 'Contenu', keys: ['jeux', 'equipes', 'joueurs', 'effectifs', 'tournois', 'phases', 'groupes', 'participants', 'matchs'] },
+  { title: 'Contenu', keys: ['jeux', 'equipes', 'joueurs', 'effectifs', 'tournois', 'phases', 'groupes', 'participants', 'matchs', 'actualites'] },
   { title: 'Diffusion', keys: ['diffusions', 'sources', 'rediffusions'] },
   {
     title: 'Plateforme',

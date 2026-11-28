@@ -44,7 +44,7 @@ export function AdminForm({
             </label>
           );
         } else if (field.type === 'textarea') {
-          control = <textarea id={id} name={field.name} rows={4} defaultValue={String(value ?? '')} className={input} />;
+          control = <textarea id={id} name={field.name} rows={field.rows ?? 4} defaultValue={String(value ?? '')} className={input} />;
         } else if (field.type === 'select' || field.type === 'relation') {
           const list = field.type === 'select' ? (field.options ?? []) : (options[field.name] ?? []);
           control = (
