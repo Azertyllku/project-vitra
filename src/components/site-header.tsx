@@ -19,6 +19,20 @@ const TEAMS_AND_PLAYERS: NavGroup = {
     { label: 'Joueurs', href: '/joueurs' },
   ],
 };
+const MEDIA: NavGroup = {
+  label: 'Médias',
+  items: [
+    { label: 'Actualités', href: '/actualites' },
+    { label: 'Rediffusions', href: '/rediffusions' },
+  ],
+};
+const STAFF: NavGroup = {
+  label: 'Staff',
+  items: [
+    { label: 'Modération', href: '/moderation' },
+    { label: 'Administration', href: '/admin' },
+  ],
+};
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -33,19 +47,20 @@ export async function SiteHeader() {
     {
       items: [
         { label: 'Accueil', href: '/' },
+        { label: 'Recherche', href: '/recherche' },
         { label: 'Live', href: '/live' },
         { label: 'Matchs', href: '/matchs' },
-        { label: 'Rediffusions', href: '/rediffusions' },
         { label: 'Communauté', href: '/communaute' },
       ],
     },
     { title: COMPETITIONS.label, items: COMPETITIONS.items },
     { title: TEAMS_AND_PLAYERS.label, items: TEAMS_AND_PLAYERS.items },
+    { title: MEDIA.label, items: MEDIA.items },
   ];
   const mobileAccount = viewer
     ? [
         { label: 'Messages', href: '/messages' },
-        ...(viewer.isStaff ? [{ label: 'Modération', href: '/moderation' }, { label: 'Administration', href: '/admin' }] : []),
+        ...(viewer.isStaff ? STAFF.items : []),
         { label: 'Mon profil', href: '/profil' },
       ]
     : [
@@ -60,30 +75,35 @@ export async function SiteHeader() {
           ESPORT <span className="text-[var(--accent)]">HUB</span>
         </Link>
 
-        <div className="hidden flex-1 items-center gap-1 lg:flex">
+        <div className="hidden flex-1 items-center gap-1 xl:flex">
           <NavLink href="/live">Live</NavLink>
           <NavLink href="/matchs">Matchs</NavLink>
           <NavDropdown group={COMPETITIONS} />
           <NavDropdown group={TEAMS_AND_PLAYERS} />
-          <NavLink href="/rediffusions">Rediffusions</NavLink>
+          <NavDropdown group={MEDIA} />
           <NavLink href="/communaute">Communauté</NavLink>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Link href="/recherche" aria-label="Rechercher" className="rounded-md p-2 text-zinc-300 transition-colors hover:bg-white/5 hover:text-white">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+              <circle cx="9" cy="9" r="6" />
+              <path d="m14 14 4 4" />
+            </svg>
+          </Link>
           {viewer ? (
             <>
               <NotificationBell userId={viewer.id} initialCount={unread} />
-              <div className="hidden items-center gap-1 lg:flex">
+              <div className="hidden items-center gap-1 xl:flex">
                 <NavLink href="/messages">Messages</NavLink>
-                {viewer.isStaff && <NavLink href="/moderation">Modération</NavLink>}
-                {viewer.isStaff && <NavLink href="/admin">Admin</NavLink>}
+                {viewer.isStaff && <NavDropdown group={STAFF} />}
                 <Link href="/profil" className="ml-1 whitespace-nowrap rounded-full border border-[var(--border)] px-4 py-1.5 text-sm text-zinc-100 transition-colors hover:border-[var(--accent)] hover:bg-white/5">
                   Mon profil
                 </Link>
               </div>
             </>
           ) : (
-            <div className="hidden items-center gap-2 lg:flex">
+            <div className="hidden items-center gap-2 xl:flex">
               <NavLink href="/connexion">Connexion</NavLink>
               <Link href="/inscription" className="whitespace-nowrap rounded-full bg-[var(--accent)] px-4 py-1.5 text-sm font-medium hover:brightness-110">
                 S’inscrire

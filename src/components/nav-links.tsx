@@ -63,14 +63,14 @@ export function NavDropdown({ group }: { group: NavGroup }) {
   );
 }
 
-/** Menu mobile : se referme à chaque navigation. */
+/** Menu mobile (jusqu'à 1280 px) : se referme à chaque navigation. */
 export function MobileMenu({ sections, accountItems }: { sections: { title?: string; items: NavItem[] }[]; accountItems: (NavItem & { primary?: boolean })[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const row = (active: boolean) => `block rounded-lg px-3 py-2 text-sm ${active ? on : off}`;
   return (
-    <div className="relative lg:hidden">
+    <div className="relative xl:hidden">
       <button
         type="button"
         aria-expanded={open}
